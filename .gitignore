@@ -41,3 +41,15 @@ app-example
 # generated native folders
 /ios
 /android
+
+
+# Python virtual environments
+.venv/
+venv/
+backend/.venv/
+
+# ======================
+# IDE / Editor
+# ======================
+.idea/
+.vscode/

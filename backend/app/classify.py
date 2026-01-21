@@ -56,13 +56,9 @@ for name, cfg in models.items():
     elif name == "AlexNet":
         model.classifier[6] = torch.nn.Linear(model.classifier[6].in_features, num_classes)
 
-    model.to(device)
-    model.eval()
-
-
     model.load_state_dict(torch.load(cfg["weights"], map_location=device))
-    model.eval()
     model.to(device)
+    model.eval()
 
     loaded_models[name] = model
 

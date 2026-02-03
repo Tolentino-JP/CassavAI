@@ -1,21 +1,91 @@
 from ultralytics import YOLO
+from PIL import Image, ImageDraw
+import base64
+import io
+from .classify import predict_ensemble_soft_voting
 
 model = YOLO(r'C:\Users\johnp\Documents\Paul_Files\fourth year\CSELEC3\Thesis\Models\yolo8x.pt')  # your trained weights
 
-def predicts(image):
-    results = model(image)
+def Detect(image: Image.Image):
+    yolo_results = model(image, conf=0.80)
+    boxes = yolo_results[0].boxes
 
-    output = []
-    for box in results[0].boxes:
-        cls = int(box.cls)
-        label = results[0].names[cls]
-        conf = float(box.conf)
-        x1, y1, x2, y2 = box.xyxy[0].tolist()
+    if boxes is None or len(boxes) == 0:
+        return {"error": "No detections"}
 
-        output.append({
-            "label": label,
-            "confidence": conf,
-            "box": [x1, y1, x2, y2]
-        })
+    best_leaf_box = None
+    best_conf = -1.0
 
-    return output
+    for box in boxes:
+        cls = int(box.cls[0])
+        label = yolo_results[0].names[cls]
+        conf = float(box.conf[0])
+
+        if label == "Leaf" and conf > best_conf:
+            best_conf = conf
+            best_leaf_box = box
+
+    if best_leaf_box is None:
+        return {"error": "Not Leaf"}
+
+    x1, y1, x2, y2 = best_leaf_box.xyxy[0].tolist()
+    bbox = [x1, y1, x2, y2]
+
+    # Crop for classification
+    cropped = CropImage(image, bbox)
+    if cropped is None:
+        return {"error": "Invalid crop"}
+
+    classification = predict_ensemble_soft_voting(cropped, return_individual=False)
+
+    # Draw bounding box on original image
+    annotated = DrawBox(image, bbox, label="Leaf", conf=best_conf)
+
+    # Convert annotated image to base64
+    annotated_b64 = ImageToBase64(annotated)
+
+    return {
+        "detection": {
+            "label": "Leaf",
+            "confidence": round(best_conf, 4),
+            "box": [int(x1), int(y1), int(x2), int(y2)]
+        },
+        "classification": classification,
+        "annotated_image_base64": annotated_b64
+    }
+
+# Crop Image 
+def CropImage(image: Image.Image, box: list):
+
+    x1, y1, x2, y2 = map(int, box)
+
+    w, h = image.size
+    x1 = max(0, min(x1, w))
+    x2 = max(0, min(x2, w))
+    y1 = max(0, min(y1, h))
+    y2 = max(0, min(y2, h))
+
+    cropped = image.crop((x1, y1, x2, y2))
+    return cropped
+
+# Draw bounding box
+def DrawBox(image: Image.Image, box, label="Leaf", conf=0.0):
+
+    img = image.copy()
+    draw = ImageDraw.Draw(img)
+
+    x1, y1, x2, y2 = map(int, box)
+
+    # Rectangle
+    draw.rectangle([x1, y1, x2, y2], outline="red", width=4)
+
+    # Label text
+    text = f"{label} {conf:.2f}"
+    draw.text((x1, max(0, y1 - 20)), text, fill="red")
+
+    return img
+
+def ImageToBase64(image: Image.Image):
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG")
+    return base64.b64encode(buffer.getvalue()).decode("utf-8")

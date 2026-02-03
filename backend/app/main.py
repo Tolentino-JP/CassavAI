@@ -1,19 +1,18 @@
-from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
+from fastapi import UploadFile, File
 from PIL import Image
 import io
-import detection
+
+from .detection import Detect
+
 
 app = FastAPI()
 
 @app.post("/predict")
 async def predict_image(file: UploadFile = File(...)):
-    image_bytes = await file.read()
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    img_bytes = await file.read()
+    image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
-    detections = detection.predicts(image)
-
-    return JSONResponse({"detections": detections})
-
-
+    result = Detect(image)
+    return result
 

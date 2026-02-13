@@ -40,7 +40,8 @@ export async function takePhoto() {
   }
 
   const result = await ImagePicker.launchCameraAsync({
-    allowsEditing: false,
+    allowsEditing: true,
+    aspect: [1, 1],
     quality: 1,
   });
 

@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { Button, Image, Text, View } from 'react-native';
+import { Button, Image, View } from 'react-native';
+import AppText from "./AppText";
 
 export default function Predict() {
   const [image, setImage] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export default function Predict() {
 
       <Button title="Send to Backend" onPress={sendToBackend} />
 
-      {result && <Text>{result}</Text>}
+      {result && <AppText>{result}</AppText>}
     </View>
   );
 }

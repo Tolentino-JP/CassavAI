@@ -3,7 +3,7 @@ from fastapi import UploadFile, File
 from PIL import Image
 import io
 
-from .detection import Detect
+from detection import Detect
 
 
 app = FastAPI()

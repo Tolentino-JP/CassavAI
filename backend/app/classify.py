@@ -5,7 +5,7 @@ from torchvision.models import (
 from torchvision import transforms
 import torch
 from PIL import Image
-from .class_names import CLASS_NAMES
+from class_names import CLASS_NAMES
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

@@ -29,6 +29,7 @@ export default function HomeScreen() {
   const [errorVisible, setErrorVisible] = useState(false);
   const [guideVisible, setGuideVisible] = useState(false);
   const [scanBoxHeight, setScanBoxHeight] = useState(0);
+  const [result, setResult] = useState<string | null>(null);
   const scanAnim = useRef(new Animated.Value(0)).current;
   const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const horizontalPadding = 16;
@@ -91,6 +92,7 @@ export default function HomeScreen() {
     return () => subscription.remove();
   }, []);
 
+  // Handlers for bottom navigation actions
   const handleBrowseFiles = async () => {
     const uri = await pickImageFromLibrary();
     if (uri) {
@@ -109,35 +111,68 @@ export default function HomeScreen() {
     }
   };
 
-  const handleScan = () => {
+  const handleScan = async () => {
+
     if (!imageUri) {
       setErrorVisible(true);
       return;
     }
+
     if (isScanning) return;
 
-    setIsScanning(true);
+    try {
 
-    if (scanTimeoutRef.current) {
-      clearTimeout(scanTimeoutRef.current);
-      scanTimeoutRef.current = null;
-    }
+      // Start animation
+      setIsScanning(true);
 
-    scanTimeoutRef.current = setTimeout(() => {
-      setIsScanning(false);
+      // ---- SEND TO BACKEND ----
+      const filename = imageUri.split("/").pop() ?? "photo.jpg";
+      const type = filename.endsWith(".png")
+        ? "image/png"
+        : "image/jpeg";
+
+      const formData = new FormData();
+      formData.append("file", {
+        uri: imageUri,
+        name: filename,
+        type: type,
+      } as any);
+
+      const response = await fetch("http://192.168.254.112:8000/predict", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      // Save result
+      setResult(JSON.stringify(data, null, 2));
+
+      // Show results screen
       setResultsVisible(true);
       setTopTab("results");
-      scanTimeoutRef.current = null;
-    }, 1400);
+      
+    } catch (error) {
+      
+      console.error(error);
+      alert("Failed to send image to backend");
+
+    } finally {
+      // Stop animation
+      setIsScanning(false);
+    }
   };
 
   return (
     <SafeAreaView edges={["top"]} style={styles.container}>
+      {/* // Header area */}
       <View style={styles.header}>
         <Header />
       </View>
 
+      {/* // Main content area */}
       <View style={styles.content}>
+        {/* // Scan and Result tabs */}
         <View style={[styles.topTabsWrap, { width: contentWidth }]}>
           <View style={styles.topTabs}>
             <View style={[styles.tabPill, topTab === "scan" && styles.tabPillActive]}>
@@ -152,7 +187,9 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* // Main image and scanning area */}
         <View style={[styles.mainArea, { paddingBottom: mainPaddingBottom }]}>
+          {/* // Guide Button */}
           <Pressable
             style={styles.infoFloating}
             onPress={() => setGuideVisible(true)}
@@ -160,6 +197,7 @@ export default function HomeScreen() {
             <Ionicons name="information-circle-outline" size={28} color="#1f6f43" />
           </Pressable>
 
+          {/* // Image Container */}
           <View style={[styles.imageWrap, { width: imageSize, height: imageSize }]}>
             <View
               style={styles.imageWrapInner}
@@ -218,6 +256,8 @@ export default function HomeScreen() {
         </View>
       </View>
 
+
+      {/* // Bottom navigation area */}
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <BottomNav
           onBrowse={handleBrowseFiles}

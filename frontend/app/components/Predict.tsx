@@ -27,7 +27,10 @@ export default function Predict() {
     }
     
     const filename = image.split("/").pop() ?? "photo.jpg";
-    const type = "image/jpeg";
+    const type = filename.endsWith(".png")
+      ? "image/png"
+      : "image/jpeg";
+
 
     const formData = new FormData();
     formData.append("file", {

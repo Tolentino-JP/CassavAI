@@ -53,3 +53,6 @@ backend/.venv/
 # ======================
 .idea/
 .vscode/
+
+# Model Weights
+model/weights/

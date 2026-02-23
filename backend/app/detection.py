@@ -4,7 +4,7 @@ import base64
 import io
 from classify import predict_ensemble_soft_voting
 
-model = YOLO(r'C:\Users\johnp\Documents\Paul_Files\fourth year\CSELEC3\Thesis\Models\yolo8x.pt')  # your trained weights
+model = YOLO(r'../../model/Yolov8.pt')  # your trained weights
 
 def Detect(image: Image.Image):
     yolo_results = model(image, conf=0.80)

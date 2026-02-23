@@ -1,6 +1,6 @@
 from torchvision.models import (
-    resnet50, convnext_small, swin_t, vit_b_16,
-    efficientnet_v2_s, mobilenet_v3_large, alexnet
+    densenet121, resnet50, convnext_small, swin_t, vit_b_16,
+    efficientnet_v2_s, mobilenet_v3_large
 )
 from torchvision import transforms
 import torch
@@ -16,31 +16,31 @@ num_classes = len(CLASS_NAMES)
 models = {
     "ResNet50": {
         "model": resnet50,
-        "weights": "weights/resnet50.pth"
+        "weights": "../../model/weights/ResNet50.pth"
     },
     "ConvNeXt": {
         "model": convnext_small,
-        "weights": "weights/convnext.pth"
+        "weights": "../../model/weights/ConvNeXt-S.pth"
     },
     "SwinT": {
         "model": swin_t,
-        "weights": "weights/swint.pth"
+        "weights": "../../model/weights/Swin-T.pth"
     },
     "ViT": {
         "model": vit_b_16,
-        "weights": "weights/vit.pth"
+        "weights": "../../model/weights/vit.pth"
     },
     "EfficientNetV2": {
         "model": efficientnet_v2_s,
-        "weights": "weights/efficientnetv2.pth"
+        "weights": "../../model/weights/EfficientNet-v2.pth"
     },
     "MobileNetV3": {
         "model": mobilenet_v3_large,
-        "weights": "weights/mobilenetv3.pth"
+        "weights": "../../model/weights/MobileNet-v3.pth"
     },
-    "AlexNet": {
-        "model": alexnet,
-        "weights": "weights/alexnet.pth"
+    "DenseNet121": {
+        "model": densenet121,
+        "weights": "../../model/weights/DenseNet121.pth"
     }
 }
 
@@ -68,8 +68,8 @@ for name, cfg in models.items():
     elif name == "MobileNetV3":
         model.classifier[3] = torch.nn.Linear(model.classifier[3].in_features, num_classes)
 
-    elif name == "AlexNet":
-        model.classifier[6] = torch.nn.Linear(model.classifier[6].in_features, num_classes)
+    elif name == "DenseNet121":
+        model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes)
 
     state = torch.load(cfg["weights"], map_location=device)
 

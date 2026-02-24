@@ -4,11 +4,13 @@ import base64
 import io
 from classify import predict_ensemble_soft_voting
 
-model = YOLO(r'../../model/Yolov8.pt')  # your trained weights
+model = YOLO(r'../../model/weights/Yolov8.pt')  # trained weights
 
 def Detect(image: Image.Image):
-    yolo_results = model(image, conf=0.80)
-    boxes = yolo_results[0].boxes
+    results = model(image, conf=0.50)
+    result = results[0]
+    boxes = result.boxes
+    names = result.names
 
     if boxes is None or len(boxes) == 0:
         return {"error": "No detections"}
@@ -18,39 +20,45 @@ def Detect(image: Image.Image):
 
     for box in boxes:
         cls = int(box.cls[0])
-        label = yolo_results[0].names[cls]
+        label = names[cls]
         conf = float(box.conf[0])
 
-        if label == "Leaf" and conf > best_conf:
+        if label.lower() == "cassava_leaf" and conf > best_conf:
             best_conf = conf
             best_leaf_box = box
 
     if best_leaf_box is None:
         return {"error": "Not Leaf"}
 
-    x1, y1, x2, y2 = best_leaf_box.xyxy[0].tolist()
+    x1, y1, x2, y2 = map(int, best_leaf_box.xyxy[0].tolist())
+
+    # Clamp coordinates
+    x1 = max(0, x1)
+    y1 = max(0, y1)
+    x2 = min(image.width, x2)
+    y2 = min(image.height, y2)
+
     bbox = [x1, y1, x2, y2]
 
-    # Crop for classification
     cropped = CropImage(image, bbox)
     if cropped is None:
         return {"error": "Invalid crop"}
 
-    classification = predict_ensemble_soft_voting(cropped, return_individual=False)
+    classification = predict_ensemble_soft_voting(
+        cropped,
+        return_individual=False
+    )
 
-    # Draw bounding box on original image
-    annotated = DrawBox(image, bbox, label="Leaf", conf=best_conf)
-
-    # Convert annotated image to base64
+    annotated = DrawBox(image.copy(), bbox, label="Cassava_Leaf", conf=best_conf)
     annotated_b64 = ImageToBase64(annotated)
 
     return {
         "detection": {
-            "label": "Leaf",
+            "label": "Cassava Leaf",
             "confidence": round(best_conf, 4),
-            "box": [int(x1), int(y1), int(x2), int(y2)]
+            "box": bbox
         },
-        "classification": classification,
+        "ensemble": classification,
         "annotated_image_base64": annotated_b64
     }
 

@@ -10,6 +10,8 @@ import {
   StyleSheet,
   View,
   useWindowDimensions,
+  Text,
+  ScrollView
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "./BottomNav";
@@ -18,6 +20,30 @@ import { pickImageFromLibrary, takePhoto } from "../../utils/UseImagePicker";
 import { Ionicons } from "@expo/vector-icons";
 import AppText from "./AppText";
 import ModalCard from "./ModalCard";
+import leafDescriptions from "../../assets/text/leaf_description.json";
+
+interface IndividualModelResult {
+  class_id: number;
+  class_name: String;
+  confidence: number;
+}
+
+interface PredictionResponse {
+  error?: string;
+  annotated_image_base64: string;
+  detection: {
+    label: string;
+    confidence: number;
+    bbox: [number, number, number, number];
+  };
+  ensemble: {
+    class_id: number;
+    class_name: string;
+    confidence: number;
+    probabilities: number[];
+  }
+  individual_models: IndividualModelResult;
+}
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -29,7 +55,7 @@ export default function HomeScreen() {
   const [errorVisible, setErrorVisible] = useState(false);
   const [guideVisible, setGuideVisible] = useState(false);
   const [scanBoxHeight, setScanBoxHeight] = useState(0);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<PredictionResponse | null>(null);
   const scanAnim = useRef(new Animated.Value(0)).current;
   const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const horizontalPadding = 16;
@@ -138,7 +164,7 @@ export default function HomeScreen() {
         type: type,
       } as any);
 
-      const response = await fetch("http://192.168.254.112:8000/predict", {
+      const response = await fetch("http://192.168.254.105:8000/predict", {
         method: "POST",
         body: formData,
       });
@@ -146,8 +172,7 @@ export default function HomeScreen() {
       const data = await response.json();
 
       // Save result
-      setResult(JSON.stringify(data, null, 2));
-
+      setResult(data);
       // Show results screen
       setResultsVisible(true);
       setTopTab("results");
@@ -270,9 +295,55 @@ export default function HomeScreen() {
         visible={resultsVisible}
         title="Results"
         width={modalWidth}
-        onClose={() => setResultsVisible(false)}
+        onClose={() => { setResultsVisible(false); setTopTab("scan"); }}
       >
-        <View style={styles.modalBody} />
+        <ScrollView style={{ maxHeight: 500 }} contentContainerStyle={{ padding: 18 }}>
+          {result && (
+            <View style={styles.modalBody}>
+              {result.error ? (
+                <Text style={{ color: "red", textAlign: "center" }}>
+                  {result.error}
+                </Text>
+              ) : (
+                <>
+                  {/* 🖼 Show Annotated Image */}
+                  <Image
+                    source={{
+                      uri: `data:image/png;base64,${result.annotated_image_base64}`,
+                    }}
+                    style={{ width: 250, height: 250, alignSelf: "center" }}
+                    resizeMode="contain"
+                  />
+
+                  {/* 📦 Detection Info */}
+                  <Text style={ styles.textResult }>
+                    Object Detection
+                  </Text>
+                  <Text>
+                    Label: {result.detection.label}
+                  </Text>
+                  <Text>
+                    Confidence: {(result.detection.confidence) * 100}%
+                  </Text>
+
+                  {/* 🧠 Classification Result (Ensemble) */}
+                  <Text style={ styles.textResult }>Classification </Text>
+                  <Text>
+                    Class: {result.ensemble.class_name}
+                  </Text>
+                  <Text>
+                    Confidence: {(result.ensemble.confidence)* 100}%
+                  </Text>
+
+                  <Text style={ styles.textResult }> Description:</Text>
+                  <Text style={ { textAlign: "justify", marginTop:10} }>
+                    {leafDescriptions[result.ensemble.class_name as keyof typeof leafDescriptions].description}
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
+        </ScrollView>
       </ModalCard>
 
       <ModalCard
@@ -446,7 +517,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   modalBody: {
-    height: 260,
+    minHeight: 260,
   },
   errorBody: {
     height: 200,
@@ -460,4 +531,9 @@ const styles = StyleSheet.create({
     color: "#0f172a",
     textAlign: "center",
   },
+  textResult:{
+    marginTop: 12,
+    fontWeight: "bold",
+  }
 });
+

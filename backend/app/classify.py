@@ -5,15 +5,11 @@ from torchvision.models import (
 from torchvision import transforms
 import torch
 from PIL import Image
-from class_names import CLASS_NAMES
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-num_classes = len(CLASS_NAMES)
-
-models = {
+models_config = {
     "ResNet50": {
         "model": resnet50,
         "weights": "../../model/weights/ResNet50.pth"
@@ -26,13 +22,13 @@ models = {
         "model": swin_t,
         "weights": "../../model/weights/Swin-T.pth"
     },
-    "ViT": {
-        "model": vit_b_16,
-        "weights": "../../model/weights/vit.pth"
-    },
     "EfficientNetV2": {
         "model": efficientnet_v2_s,
         "weights": "../../model/weights/EfficientNet-v2.pth"
+    },
+    "Vit-B": {
+        "model": vit_b_16,
+        "weights": "../../model/weights/Vit-B.pth"
     },
     "MobileNetV3": {
         "model": mobilenet_v3_large,
@@ -45,42 +41,41 @@ models = {
 }
 
 loaded_models = {}
+class_names = None
 
-for name, cfg in models.items():
+for name, cfg in models_config.items():
+    checkpoint = torch.load(cfg["weights"], map_location=device)
+    
+    # Extract class_names from first checkpoint (same for all)
+    if class_names is None and "class_names" in checkpoint:
+        class_names = checkpoint["class_names"]
+    
+    # Create model
     model = cfg["model"](weights=None)
-
-    # Replace classifier head to match num_classes
+    num_classes = len(class_names) if class_names else checkpoint["model_state"].get("classifier.1.weight", torch.tensor([0])).shape[0]
+    
+    # Adjust classifier head
     if name == "ResNet50":
         model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
-
     elif name == "ConvNeXt":
         model.classifier[2] = torch.nn.Linear(model.classifier[2].in_features, num_classes)
-
     elif name == "SwinT":
         model.head = torch.nn.Linear(model.head.in_features, num_classes)
-
-    elif name == "ViT":
+    elif name == "Vit-B":
         model.heads.head = torch.nn.Linear(model.heads.head.in_features, num_classes)
-
     elif name == "EfficientNetV2":
         model.classifier[1] = torch.nn.Linear(model.classifier[1].in_features, num_classes)
-
     elif name == "MobileNetV3":
         model.classifier[3] = torch.nn.Linear(model.classifier[3].in_features, num_classes)
-
     elif name == "DenseNet121":
         model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes)
-
-    state = torch.load(cfg["weights"], map_location=device)
-
-    # handle case where state dict is nested
-    if isinstance(state, dict) and "model_state_dict" in state:
-        state = state["model_state_dict"]
-
-    model.load_state_dict(state, strict=True)
+    
+    # Load state dict
+    state_key = "model_state_dict" if "model_state_dict" in checkpoint else "model_state"
+    model.load_state_dict(checkpoint[state_key], strict=True)
     model.to(device)
     model.eval()
-
+    
     loaded_models[name] = model
 
 
@@ -109,15 +104,13 @@ def predict_ensemble_soft_voting(image: Image.Image, return_individual: bool = T
         outputs = model(image_tensor)
         probs = torch.softmax(outputs, dim=1)
 
-        # sum probs for ensemble
         probs_sum = probs if probs_sum is None else probs_sum + probs
 
-        # store individual model results 
         if return_individual:
             conf, pred = torch.max(probs, dim=1)
             individual_results[name] = {
                 "class_id": pred.item(),
-                "class_name": CLASS_NAMES[pred.item()],
+                "class_name": class_names[pred.item()],
                 "confidence": round(conf.item(), 4)
             }
 
@@ -125,13 +118,83 @@ def predict_ensemble_soft_voting(image: Image.Image, return_individual: bool = T
     ensemble_conf, ensemble_pred = torch.max(avg_probs, dim=1)
 
     response = {
-        "ensemble": {
-            "class_id": ensemble_pred.item(),
-            "class_name": CLASS_NAMES[ensemble_pred.item()],
-            "confidence": round(ensemble_conf.item(), 4),
-            # optional: full probability distribution (useful for frontend charts)
-            "probabilities": [round(float(p), 6) for p in avg_probs.squeeze(0).tolist()]
-        }
+        "class_id": ensemble_pred.item(),
+        "class_name": class_names[ensemble_pred.item()],
+        "confidence": round(ensemble_conf.item(), 4),
+        "probabilities": [round(float(p), 6) for p in avg_probs.squeeze(0).tolist()]
+    }
+
+    if return_individual:
+        response["individual_models"] = individual_results
+
+    return response
+
+# _____________________________________________________
+
+
+# Validation accuracies you provided
+val_accuracies = {
+    "ResNet50": 0.9750,
+    "ConvNeXt": 0.9750,
+    "SwinT": 0.9583,
+    "Vit-B": 0.9625,
+    "EfficientNetV2": 0.8750,
+    "MobileNetV3": 0.9375,
+    "DenseNet121": 0.9750
+}
+
+# Normalize weights so they sum to 1
+total_acc = sum(val_accuracies.values())
+weights = {
+    name: acc / total_acc
+    for name, acc in val_accuracies.items()
+}
+
+@torch.no_grad()
+def predict_ensemble_weighted(image: Image.Image, return_individual: bool = True):
+    """
+    Weighted Soft Voting Ensemble:
+    - each model gives probability vector
+    - ensemble = weighted average of probabilities
+    """
+
+    image_tensor = transform(image).unsqueeze(0).to(device)
+
+    weighted_probs_sum = None
+    individual_results = {}
+
+    for name, model in loaded_models.items():
+        outputs = model(image_tensor)
+        probs = torch.softmax(outputs, dim=1)
+
+        weight = weights[name]  # Get normalized weight
+        weighted_probs = probs * weight
+
+        weighted_probs_sum = (
+            weighted_probs
+            if weighted_probs_sum is None
+            else weighted_probs_sum + weighted_probs
+        )
+
+        if return_individual:
+            conf, pred = torch.max(probs, dim=1)
+            individual_results[name] = {
+                "class_id": pred.item(),
+                "class_name": class_names[pred.item()],
+                "confidence": round(conf.item(), 4),
+                "weight": round(weight, 4)
+            }
+
+    ensemble_conf, ensemble_pred = torch.max(weighted_probs_sum, dim=1)
+
+    response = {
+        "class_id": ensemble_pred.item(),
+        "class_name": class_names[ensemble_pred.item()],
+        "confidence": round(ensemble_conf.item(), 4),
+        "probabilities": [
+            round(float(p), 6)
+            for p in weighted_probs_sum.squeeze(0).tolist()
+        ]
     }
 
     if return_individual:

@@ -1,0 +1,14 @@
+{
+  "Healthy": {
+    "description": "    The Healthy class represents cassava leaves that show normal growth and coloration without any visible signs of disease or pest infestation. These leaves typically exhibit a uniform green color, intact leaf margins, and no lesions, spots, or discoloration. The texture appears smooth and consistent, indicating proper physiological development. This class serves as the baseline reference for distinguishing diseased or damaged leaves."
+  },
+  "Spider Mites": {
+    "description": "    The Spider Mites class includes cassava leaves affected by mite infestation. Symptoms commonly appear as tiny yellow or white speckles on the leaf surface due to feeding damage. As the infestation progresses, leaves may become pale, dry, curled, or bronzed, and fine webbing may be visible on the underside. Severe infestations can significantly reduce photosynthetic capacity and overall plant vigor."
+  },
+  "leaf blight": {
+    "description": "    The Leaf Blight class is characterized by large, irregularly shaped brown or dark lesions that may expand rapidly across the leaf surface. These lesions often start at the edges or tips and may cause extensive tissue necrosis. In advanced stages, the affected areas may merge, leading to premature leaf drying and drop. Leaf blight can severely impact crop productivity if not managed early."
+  },
+  "leaf spot": {
+    "description": "    The Leaf Spot class consists of leaves showing small, distinct circular or irregular spots scattered across the surface. These spots are typically brown or dark in color and may be surrounded by yellow halos. Unlike leaf blight, the lesions are usually smaller and more localized. Although initially mild, severe cases can lead to reduced photosynthetic efficiency and weakened plant health."
+  }
+}

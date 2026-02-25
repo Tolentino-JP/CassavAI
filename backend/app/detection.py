@@ -2,7 +2,7 @@ from ultralytics import YOLO
 from PIL import Image, ImageDraw
 import base64
 import io
-from classify import predict_ensemble_soft_voting
+from .classify import predict_ensemble_soft_voting
 
 model = YOLO(r'../../model/weights/Yolov8.pt')  # trained weights
 

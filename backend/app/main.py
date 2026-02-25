@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import io
-from detection import Detect
+from .detection import Detect
 
 
 app = FastAPI()

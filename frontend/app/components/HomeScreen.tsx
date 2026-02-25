@@ -164,7 +164,7 @@ export default function HomeScreen() {
         type: type,
       } as any);
 
-      const response = await fetch("http://192.168.254.105:8000/predict", {
+      const response = await fetch("https://cassavai.onrender.com/predict", {
         method: "POST",
         body: formData,
       });

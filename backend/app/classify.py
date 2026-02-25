@@ -5,38 +5,42 @@ from torchvision.models import (
 from torchvision import transforms
 import torch
 from PIL import Image
+from pathlib import Path
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Get the weights directory path relative to this file
+weights_dir = Path(__file__).parent.parent.parent / "model" / "weights"
+
 models_config = {
     "ResNet50": {
         "model": resnet50,
-        "weights": "../../model/weights/ResNet50.pth"
+        "weights": weights_dir / "ResNet50.pth"
     },
     "ConvNeXt": {
         "model": convnext_small,
-        "weights": "../../model/weights/ConvNeXt-S.pth"
+        "weights": weights_dir / "ConvNeXt-S.pth"
     },
     "SwinT": {
         "model": swin_t,
-        "weights": "../../model/weights/Swin-T.pth"
+        "weights": weights_dir / "Swin-T.pth"
     },
     "EfficientNetV2": {
         "model": efficientnet_v2_s,
-        "weights": "../../model/weights/EfficientNet-v2.pth"
+        "weights": weights_dir / "EfficientNet-v2.pth"
     },
     "Vit-B": {
         "model": vit_b_16,
-        "weights": "../../model/weights/Vit-B.pth"
+        "weights": weights_dir / "Vit-B.pth"
     },
     "MobileNetV3": {
         "model": mobilenet_v3_large,
-        "weights": "../../model/weights/MobileNet-v3.pth"
+        "weights": weights_dir / "MobileNet-v3.pth"
     },
     "DenseNet121": {
         "model": densenet121,
-        "weights": "../../model/weights/DenseNet121.pth"
+        "weights": weights_dir / "DenseNet121.pth"
     }
 }
 
@@ -44,7 +48,7 @@ loaded_models = {}
 class_names = None
 
 for name, cfg in models_config.items():
-    checkpoint = torch.load(cfg["weights"], map_location=device)
+    checkpoint = torch.load(str(cfg["weights"]), map_location=device)
     
     # Extract class_names from first checkpoint (same for all)
     if class_names is None and "class_names" in checkpoint:

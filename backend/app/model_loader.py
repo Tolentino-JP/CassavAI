@@ -15,6 +15,6 @@ model_paths = {}
 
 for file in MODEL_FILES:
     model_paths[file] = hf_hub_download(
-        repo_id="your-username/your-repo",
+        repo_id="JohnPaul05/ResNet50",
         filename=file
     )

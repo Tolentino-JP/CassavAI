@@ -4,11 +4,10 @@ import base64
 import io
 from pathlib import Path
 from .classify import predict_ensemble_soft_voting
-from .model_loader import model_paths
 
-# weights_dir = Path(__file__).parent.parent.parent / "model" / "weights"
-# model = YOLO(str(weights_dir / "Yolov8.pt"))  # trained weights
-model = YOLO(model_paths["Yolov8.pt"])
+weights_dir = Path(__file__).parent.parent.parent / "model" / "weights"
+model = YOLO(str(weights_dir / "Yolov8.pt"))  # trained weights
+
 
 def Detect(image: Image.Image):
     results = model(image, conf=0.50)

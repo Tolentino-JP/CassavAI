@@ -4,6 +4,3 @@ torch
 torchvision
 ultralytics
 Pillow
-gunicorn
-gdown
-huggingface_hub

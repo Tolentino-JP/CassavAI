@@ -164,7 +164,7 @@ export default function HomeScreen() {
         type: type,
       } as any);
 
-      const response = await fetch("https://cassavai.onrender.com/predict", {
+      const response = await fetch("https://quadrantlike-artie-pokiest.ngrok-free.dev/predict", {
         method: "POST",
         body: formData,
       });

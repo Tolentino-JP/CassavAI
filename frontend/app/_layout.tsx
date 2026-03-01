@@ -20,9 +20,7 @@ export default function RootLayout() {
   }, [loaded]);
 
   useEffect(() => {
-    NavigationBar.setBackgroundColorAsync("#ffffff");
     NavigationBar.setButtonStyleAsync("dark");
-    NavigationBar.setBorderColorAsync("#ffffff");
   }, []);
 
   if (!loaded) return null;

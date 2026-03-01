@@ -39,3 +39,11 @@
    ```bash
    ngrok http 8000
    ```
+
+## To build an APK
+
+1. run this command
+
+   ```bash
+   eas build --platform android --profile preview --clear-cache
+   ```

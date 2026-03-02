@@ -2,7 +2,7 @@
   "expo": {
     "name": "CassavAI",
     "slug": "CassavAI",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/cassavai_logo.png",
     "scheme": "cassavai",
@@ -12,10 +12,11 @@
       "supportsTablet": true
     },
     "android": {
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/cassavai_logo.png",
-        "monochromeImage": "./assets/images/cassavai_logo.png",
-        "backgroundColor": "#000000"
+        // "monochromeImage": "./assets/images/cassavai_logo.png",
+        "backgroundColor": "#bfe7cc"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -36,10 +37,10 @@
           "image": "./assets/images/cassavai_logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "backgroundColor": "#bfe7cc"
+          // "dark": {
+          //   "backgroundColor": "#000000"
+          // }
         }
       ],
       [

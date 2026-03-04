@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import {
   Alert,
   BackHandler,
@@ -21,6 +22,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AppText from "./AppText";
 import ModalCard from "./ModalCard";
 import leafDescriptions from "../../assets/text/leaf_description.json";
+import guideInstructions from "../../assets/text/guide_instructions.json";
 
 interface IndividualModelResult {
   class_id: number;
@@ -54,6 +56,7 @@ export default function HomeScreen() {
   const [resultsVisible, setResultsVisible] = useState(false);
   const [errorVisible, setErrorVisible] = useState(false);
   const [guideVisible, setGuideVisible] = useState(false);
+  const [guideLanguage, setGuideLanguage] = useState<"en" | "tl">("en");
   const [scanBoxHeight, setScanBoxHeight] = useState(0);
   const [result, setResult] = useState<PredictionResponse | null>(null);
   const scanAnim = useRef(new Animated.Value(0)).current;
@@ -186,6 +189,47 @@ export default function HomeScreen() {
       // Stop animation
       setIsScanning(false);
     }
+  };
+
+  type GuideIconToken = "camera" | "browse" | "scan";
+  type IoniconName = ComponentProps<typeof Ionicons>["name"];
+
+  const renderGuideText = (text: string): ReactNode[] => {
+    const tokenRegex = /\[\[(camera|browse|scan)\]\]/g;
+    const iconNameByToken: Record<GuideIconToken, IoniconName> = {
+      camera: "camera-outline",
+      browse: "image-outline",
+      scan: "scan-outline",
+    };
+
+    const nodes: ReactNode[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    let iconIndex = 0;
+
+    while ((match = tokenRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        nodes.push(text.slice(lastIndex, match.index));
+      }
+
+      const token = match[1] as GuideIconToken;
+      nodes.push(
+        <Ionicons
+          key={`guide-icon-${token}-${iconIndex++}`}
+          name={iconNameByToken[token]}
+          size={16}
+          color="#1f6f43"
+        />
+      );
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < text.length) {
+      nodes.push(text.slice(lastIndex));
+    }
+
+    return nodes;
   };
 
   return (
@@ -366,7 +410,78 @@ export default function HomeScreen() {
         width={modalWidth}
         onClose={() => setGuideVisible(false)}
       >
-        <View style={styles.modalBody} />
+        <ScrollView
+          style={{ maxHeight: 500, backgroundColor: "#bfe7cc" }}
+          contentContainerStyle={styles.guideContent}
+        >
+          <View style={styles.langToggle}>
+            <Pressable
+              style={[
+                styles.langTogglePill,
+                guideLanguage === "tl" && styles.langTogglePillActive,
+              ]}
+              onPress={() => setGuideLanguage("tl")}
+              accessibilityRole="button"
+              accessibilityState={{ selected: guideLanguage === "tl" }}
+            >
+              <AppText
+                weight="bold"
+                style={[
+                  styles.langToggleText,
+                  guideLanguage === "tl" && styles.langToggleTextActive,
+                ]}
+              >
+                Tagalog
+              </AppText>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.langTogglePill,
+                guideLanguage === "en" && styles.langTogglePillActive,
+              ]}
+              onPress={() => setGuideLanguage("en")}
+              accessibilityRole="button"
+              accessibilityState={{ selected: guideLanguage === "en" }}
+            >
+              <AppText
+                weight="bold"
+                style={[
+                  styles.langToggleText,
+                  guideLanguage === "en" && styles.langToggleTextActive,
+                ]}
+              >
+                English
+              </AppText>
+            </Pressable>
+          </View>
+
+          <AppText weight="semibold" style={styles.guideIntro}>
+            {guideInstructions.intro[guideLanguage]}
+          </AppText>
+
+          {guideInstructions.steps[guideLanguage].map((step, index) => (
+            <View key={`step-${index}`} style={styles.guideRow}>
+              <AppText weight="bold" style={styles.guideNum}>
+                {index + 1}.
+              </AppText>
+              <AppText style={styles.guideText}>{renderGuideText(step)}</AppText>
+            </View>
+          ))}
+
+          <AppText weight="bold" style={styles.guideSectionTitle}>
+            {guideInstructions.photoTipsTitle[guideLanguage]}
+          </AppText>
+
+          {guideInstructions.photoTips[guideLanguage].map((tip, index) => (
+            <View key={`tip-${index}`} style={styles.guideRow}>
+              <AppText weight="bold" style={styles.guideBullet}>
+                •
+              </AppText>
+              <AppText style={styles.guideText}>{renderGuideText(tip)}</AppText>
+            </View>
+          ))}
+        </ScrollView>
       </ModalCard>
     </SafeAreaView>
   );
@@ -518,6 +633,71 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     minHeight: 260,
+  },
+  guideContent: {
+    padding: 18,
+  },
+  guideIntro: {
+    fontSize: 14,
+    color: "#0f172a",
+    marginBottom: 12,
+  },
+  guideSectionTitle: {
+    fontSize: 14,
+    color: "#0f172a",
+    marginTop: 14,
+    marginBottom: 10,
+  },
+  guideRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 10,
+  },
+  guideNum: {
+    width: 22,
+    fontSize: 14,
+    color: "#1f6f43",
+    paddingTop: 1,
+  },
+  guideBullet: {
+    width: 22,
+    fontSize: 16,
+    color: "#1f6f43",
+    lineHeight: 18,
+  },
+  guideText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#0f172a",
+    lineHeight: 20,
+  },
+  langToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    padding: 6,
+    borderRadius: 18,
+    backgroundColor: "rgba(19, 170, 5, 0.35)",
+    marginBottom: 12,
+  },
+  langTogglePill: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  langTogglePillActive: {
+    backgroundColor: "rgba(255,255,255,0.55)",
+  },
+  langToggleText: {
+    fontSize: 14,
+    color: "#0f172a",
+  },
+  langToggleTextActive: {
+    color: "#1f6f43",
   },
   errorBody: {
     height: 200,

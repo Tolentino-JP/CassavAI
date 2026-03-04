@@ -1,0 +1,36 @@
+{
+  "intro": {
+    "en": "How to use:",
+    "tl": "Paano gamitin:"
+  },
+  "steps": {
+    "en": [
+      "Tap Camera [[camera]] to take a photo, or Browse [[browse]] to pick one.",
+      "Center the leaf and keep it clear; 1:1 (square) is recommended.",
+      "Tap Scan [[scan]], then open Results."
+    ],
+    "tl": [
+      "Pindutin ang Camera [[camera]] para kumuha ng larawan, o Browse [[browse]] para pumili sa gallery.",
+      "Igitna at linawin ang dahon; mas mainam ang 1:1 (square) na crop.",
+      "Pindutin ang Scan [[scan]], pagkatapos buksan ang Results."
+    ]
+  },
+  "photoTipsTitle": {
+    "en": "Cassava leaf photo tips",
+    "tl": "Tips sa pagkuha ng larawan ng Cassava leaf"
+  },
+  "photoTips": {
+    "en": [
+      "Take the picture on a bright and even lighting (avoid shadows/glare).",
+      "Put the leaf on a plain background.",
+      "Put the leaf inside the frame; avoid hands/other leaves.",
+      "Keep the phone steady and in focus; crop to 1:1 if needed."
+    ],
+    "tl": [
+      "Kumuha ng litrato sa maliwanag at pantay na ilaw (iwas anino/silaw).",
+      "Ilagay ang dahon sa simpleng background",
+      "Ilagay ang buong dahon sa frame; iwasang isama ang kamay o ibang dahon.",
+      "Hawakan nang steady at mag-focus; pagkatapos kumuha ay i-crop sa 1:1 na ratio."
+    ]
+  }
+}

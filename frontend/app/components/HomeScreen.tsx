@@ -345,7 +345,7 @@ export default function HomeScreen() {
           {result && (
             <View style={styles.modalBody}>
               {result.error ? (
-                <Text style={{ color: "red", textAlign: "center" }}>
+                <Text style={{ color: "red", textAlign: "center", fontSize: 30 }}>
                   {result.error}
                 </Text>
               ) : (

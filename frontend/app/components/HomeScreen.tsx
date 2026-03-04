@@ -297,7 +297,7 @@ export default function HomeScreen() {
         width={modalWidth}
         onClose={() => { setResultsVisible(false); setTopTab("scan"); }}
       >
-        <ScrollView style={{ maxHeight: 500 }} contentContainerStyle={{ padding: 18 }}>
+        <ScrollView style={{ maxHeight: 500, backgroundColor: "#bfe7cc" }} contentContainerStyle={{ padding: 18 }}>
           {result && (
             <View style={styles.modalBody}>
               {result.error ? (

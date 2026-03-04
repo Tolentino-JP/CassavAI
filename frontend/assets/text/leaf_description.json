@@ -1,14 +1,14 @@
 {
   "Healthy": {
-    "description": "    The Healthy class represents cassava leaves that show normal growth and coloration without any visible signs of disease or pest infestation. These leaves typically exhibit a uniform green color, intact leaf margins, and no lesions, spots, or discoloration. The texture appears smooth and consistent, indicating proper physiological development. This class serves as the baseline reference for distinguishing diseased or damaged leaves."
+    "description": "Ang Healthy ay kumakatawan sa mga dahon ng kamoteng kahoy na nagpapakita ng normal na paglaki at kulay na walang nakikitang palatandaan ng sakit o peste. Karaniwan itong may pantay na berdeng kulay, buo ang gilid ng dahon, at walang sugat, batik, o pagbabago ng kulay. Ang tekstura nito ay makinis at pantay, na nagpapahiwatig ng maayos na pag-unlad ng halaman. Ito ang nagsisilbing batayang paghahambingan sa pagtukoy kung ang dahon ay may sakit o pinsala."
   },
   "Spider Mites": {
-    "description": "    The Spider Mites class includes cassava leaves affected by mite infestation. Symptoms commonly appear as tiny yellow or white speckles on the leaf surface due to feeding damage. As the infestation progresses, leaves may become pale, dry, curled, or bronzed, and fine webbing may be visible on the underside. Severe infestations can significantly reduce photosynthetic capacity and overall plant vigor."
+    "description": "Ang Spider Mites ay kinabibilangan ng mga dahon ng kamoteng kahoy na inatake ng maliliit na garapata o mites. Karaniwang makikita ang maliliit na dilaw o puting tuldok sa ibabaw ng dahon dahil sa kanilang pagsipsip ng sustansya. Habang lumalala ang infestation, maaaring mamutla, matuyo, kumulubot, o maging kulay tansong ang dahon, at maaaring makita ang manipis na sapot sa ilalim nito. Ang matinding infestation ay maaaring magpababa ng kakayahan ng halaman sa potosintesis at magpahina sa kabuuang kalusugan nito."
   },
-  "leaf blight": {
-    "description": "    The Leaf Blight class is characterized by large, irregularly shaped brown or dark lesions that may expand rapidly across the leaf surface. These lesions often start at the edges or tips and may cause extensive tissue necrosis. In advanced stages, the affected areas may merge, leading to premature leaf drying and drop. Leaf blight can severely impact crop productivity if not managed early."
+  "Leaf Blight": {
+    "description": "Ang Leaf Blight ay nailalarawan ng malalaki at hindi regular na hugis na kayumanggi o maitim na sugat na maaaring mabilis kumalat sa ibabaw ng dahon. Madalas itong nagsisimula sa gilid o dulo ng dahon at nagdudulot ng pagkamatay ng mga tisyu. Sa mas malalang yugto, maaaring magsanib ang mga sugat at magresulta sa maagang pagkatuyo at pagkalagas ng dahon. Ang leaf blight ay maaaring magdulot ng malaking pagbaba sa ani kung hindi maagapan."
   },
-  "leaf spot": {
-    "description": "    The Leaf Spot class consists of leaves showing small, distinct circular or irregular spots scattered across the surface. These spots are typically brown or dark in color and may be surrounded by yellow halos. Unlike leaf blight, the lesions are usually smaller and more localized. Although initially mild, severe cases can lead to reduced photosynthetic efficiency and weakened plant health."
+  "Leaf Spot": {
+    "description": "Ang Leaf Spot ay binubuo ng mga dahon na may maliliit at malinaw na bilog o hindi regular na mga batik na kalat sa ibabaw. Ang mga batik na ito ay karaniwang kayumanggi o maitim at maaaring may dilaw na palibot. Hindi tulad ng leaf blight, ang mga sugat nito ay mas maliit at mas limitado ang pagkalat. Bagama’t maaaring magsimula nang banayad, ang malalang kaso ay maaaring magpababa sa kakayahan ng dahon sa potosintesis at magpahina sa kalusugan ng halaman."
   }
 }

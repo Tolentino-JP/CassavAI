@@ -30,6 +30,7 @@ interface IndividualModelResult {
   confidence: number;
 }
 
+
 interface PredictionResponse {
   error?: string;
   annotated_image_base64: string;
@@ -67,6 +68,9 @@ export default function HomeScreen() {
   const modalWidth = Math.min(contentWidth, 420);
   const mainPaddingBottom = height < 700 ? 36 : 70;
 
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
   useEffect(() => {
     if (!isScanning) {
       scanAnim.stopAnimation();
@@ -120,6 +124,34 @@ export default function HomeScreen() {
     const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => subscription.remove();
   }, []);
+  
+  const startTimer = () => {
+    const start = Date.now();
+
+    timerRef.current = setInterval(() => {
+      setElapsedTime(Date.now() - start);
+    }, 50);
+  };
+
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const formatTime = (ms: number) => {
+    const totalSeconds = ms / 1000;
+
+    if (totalSeconds < 60) {
+      return `${totalSeconds.toFixed(2)}s`; 
+    }
+
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+
+    return `${minutes}:${seconds.toString().padStart(2, "0")}s`;
+  };
 
   // Handlers for bottom navigation actions
   const handleBrowseFiles = async () => {
@@ -154,6 +186,9 @@ export default function HomeScreen() {
       // Start animation
       setIsScanning(true);
 
+      setElapsedTime(0);
+      startTimer();
+
       // ---- SEND TO BACKEND ----
       const filename = imageUri.split("/").pop() ?? "photo.jpg";
       const type = filename.endsWith(".png")
@@ -187,6 +222,8 @@ export default function HomeScreen() {
 
     } finally {
       // Stop animation
+      stopTimer();
+
       setIsScanning(false);
     }
   };
@@ -316,7 +353,7 @@ export default function HomeScreen() {
                 <View style={styles.scanHud}>
                   <ActivityIndicator color="#0f172a" />
                   <AppText weight="semibold" style={styles.scanText}>
-                    Scanning...
+                    {formatTime(elapsedTime)} Scanning...
                   </AppText>
                 </View>
               </View>
@@ -350,7 +387,7 @@ export default function HomeScreen() {
                 </Text>
               ) : (
                 <>
-                  {/* 🖼 Show Annotated Image */}
+                  {/*Show Annotated Image*/}
                   <Image
                     source={{
                       uri: `data:image/png;base64,${result.annotated_image_base64}`,
@@ -359,7 +396,12 @@ export default function HomeScreen() {
                     resizeMode="contain"
                   />
 
-                  {/* 📦 Detection Info */}
+                  <Text style={styles.textResult}>Processing Time</Text>
+                  <Text>
+                    {formatTime(elapsedTime)}
+                  </Text>
+
+                  {/*Detection Info*/}
                   <Text style={ styles.textResult }>
                     Object Detection
                   </Text>
@@ -370,7 +412,7 @@ export default function HomeScreen() {
                     Confidence: {(result.detection.confidence) * 100}%
                   </Text>
 
-                  {/* 🧠 Classification Result (Ensemble) */}
+                  {/*Classification Result*/}
                   <Text style={ styles.textResult }>Classification </Text>
                   <Text>
                     Class: {result.ensemble.class_name}

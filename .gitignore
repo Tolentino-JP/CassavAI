@@ -46,6 +46,7 @@ app-example
 # Python virtual environments
 .venv/
 venv/
+.env
 backend/.venv/
 
 # ======================

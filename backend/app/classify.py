@@ -48,17 +48,60 @@ loaded_models = {}
 class_names = None
 
 for name, cfg in models_config.items():
-    checkpoint = torch.load(str(cfg["weights"]), map_location=device)
-    
-    # Extract class_names from first checkpoint (same for all)
+    # FIX #3: Check weight file exists before loading
+    if not cfg["weights"].exists():
+        raise FileNotFoundError(
+            f"[{name}] Weight file not found: {cfg['weights']}"
+        )
+
+    # FIX #6: Set weights_only=False explicitly — we load full checkpoints (state + metadata)
+    checkpoint = torch.load(str(cfg["weights"]), map_location=device, weights_only=False)
+
+    # Extract class_names from first available checkpoint (same for all models)
     if class_names is None and "class_names" in checkpoint:
         class_names = checkpoint["class_names"]
-    
-    # Create model
+
+    # FIX #2: Determine the correct state dict key consistently
+    if "model_state_dict" in checkpoint:
+        state_key = "model_state_dict"
+    elif "model_state" in checkpoint:
+        state_key = "model_state"
+    else:
+        raise KeyError(
+            f"[{name}] Checkpoint must contain 'model_state_dict' or 'model_state'. "
+            f"Found keys: {list(checkpoint.keys())}"
+        )
+
+    # FIX #1: Derive num_classes safely using the resolved state_key
+    if class_names is not None:
+        num_classes = len(class_names)
+    else:
+        # Fallback: infer num_classes from the output layer weight shape
+        state_dict = checkpoint[state_key]
+        output_keys = [
+            "fc.weight",               # ResNet50
+            "classifier.2.weight",     # ConvNeXt
+            "head.weight",             # SwinT
+            "heads.head.weight",       # ViT-B
+            "classifier.1.weight",     # EfficientNetV2
+            "classifier.3.weight",     # MobileNetV3
+            "classifier.weight",       # DenseNet121
+        ]
+        num_classes = None
+        for key in output_keys:
+            if key in state_dict:
+                num_classes = state_dict[key].shape[0]
+                break
+        if num_classes is None:
+            raise ValueError(
+                f"[{name}] Could not infer num_classes from checkpoint. "
+                f"No known output layer key found."
+            )
+
+    # Create model with no pretrained weights
     model = cfg["model"](weights=None)
-    num_classes = len(class_names) if class_names else checkpoint["model_state"].get("classifier.1.weight", torch.tensor([0])).shape[0]
-    
-    # Adjust classifier head
+
+    # Adjust classifier head to match num_classes
     if name == "ResNet50":
         model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
     elif name == "ConvNeXt":
@@ -73,16 +116,26 @@ for name, cfg in models_config.items():
         model.classifier[3] = torch.nn.Linear(model.classifier[3].in_features, num_classes)
     elif name == "DenseNet121":
         model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes)
-    
-    # Load state dict
-    state_key = "model_state_dict" if "model_state_dict" in checkpoint else "model_state"
+
+    # Load weights into model
     model.load_state_dict(checkpoint[state_key], strict=True)
     model.to(device)
     model.eval()
-    
+
     loaded_models[name] = model
+    print(f"[✓] Loaded {name} — {num_classes} classes")
+
+# FIX #4: Guard against class_names being None after loading all checkpoints
+if class_names is None:
+    raise ValueError(
+        "No 'class_names' key found in any checkpoint. "
+        "Ensure your .pth files include class_names when saved."
+    )
+
+print(f"\n[✓] Classes ({len(class_names)}): {class_names}\n")
 
 
+# Standard ImageNet normalization — compatible with all 7 backbones
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -92,12 +145,22 @@ transform = transforms.Compose([
     )
 ])
 
+
 @torch.no_grad()
-def predict_ensemble_soft_voting(image: Image.Image, return_individual: bool = True):
+def predict_ensemble_soft_voting(image: Image.Image, return_individual: bool = True) -> dict:
     """
     Soft Voting Ensemble:
-    - each model gives probability vector
-    - ensemble = average of probabilities
+    - Each model outputs a probability vector via softmax.
+    - Ensemble prediction = average of all probability vectors.
+    - Final class = argmax of the averaged probabilities.
+
+    Args:
+        image: PIL Image to classify.
+        return_individual: If True, includes per-model predictions in response.
+
+    Returns:
+        dict with ensemble prediction, confidence, probabilities, and optionally
+        individual model results.
     """
     image_tensor = transform(image).unsqueeze(0).to(device)
 
@@ -133,18 +196,20 @@ def predict_ensemble_soft_voting(image: Image.Image, return_individual: bool = T
 
     return response
 
-# _____________________________________________________
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Weighted Soft Voting Ensemble
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Validation accuracies you provided
+# Validation accuracies per model
 val_accuracies = {
-    "ResNet50": 0.9750,
-    "ConvNeXt": 0.9750,
-    "SwinT": 0.9583,
-    "Vit-B": 0.9625,
+    "ResNet50":       0.9750,
+    "ConvNeXt":       0.9750,
+    "SwinT":          0.9583,
+    "Vit-B":          0.9625,
     "EfficientNetV2": 0.8750,
-    "MobileNetV3": 0.9375,
-    "DenseNet121": 0.9750
+    "MobileNetV3":    0.9375,
+    "DenseNet121":    0.9750
 }
 
 # Normalize weights so they sum to 1
@@ -154,14 +219,25 @@ weights = {
     for name, acc in val_accuracies.items()
 }
 
+
 @torch.no_grad()
-def predict_ensemble_weighted(image: Image.Image, return_individual: bool = True):
+def predict_ensemble_weighted(image: Image.Image, return_individual: bool = True) -> dict:
     """
     Weighted Soft Voting Ensemble:
-    - each model gives probability vector
-    - ensemble = weighted average of probabilities
-    """
+    - Each model outputs a probability vector via softmax.
+    - Each vector is scaled by its normalized validation accuracy weight.
+    - Ensemble prediction = argmax of the weighted-sum probability vector.
+    - Since weights sum to 1 and each prob vector sums to 1, the result is
+      a valid probability distribution.
 
+    Args:
+        image: PIL Image to classify.
+        return_individual: If True, includes per-model predictions in response.
+
+    Returns:
+        dict with ensemble prediction, weighted confidence, probabilities, and
+        optionally individual model results with their weights.
+    """
     image_tensor = transform(image).unsqueeze(0).to(device)
 
     weighted_probs_sum = None
@@ -171,7 +247,7 @@ def predict_ensemble_weighted(image: Image.Image, return_individual: bool = True
         outputs = model(image_tensor)
         probs = torch.softmax(outputs, dim=1)
 
-        weight = weights[name]  # Get normalized weight
+        weight = weights[name]
         weighted_probs = probs * weight
 
         weighted_probs_sum = (
@@ -203,5 +279,7 @@ def predict_ensemble_weighted(image: Image.Image, return_individual: bool = True
 
     if return_individual:
         response["individual_models"] = individual_results
+
+
 
     return response

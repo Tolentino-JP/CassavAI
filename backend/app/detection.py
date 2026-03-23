@@ -3,14 +3,17 @@ from PIL import Image, ImageDraw
 import base64
 import io
 from pathlib import Path
-from .classify import predict_ensemble_soft_voting
+from .classify import predict_ensemble_soft_voting, predict_ensemble_weighted
 
 weights_dir = Path(__file__).parent.parent.parent / "model" / "weights"
 model = YOLO(str(weights_dir / "Yolov8.pt"))  # trained weights
 
 
+
 def Detect(image: Image.Image):
-    results = model(image, conf=0.50)
+
+    #Get start time
+    results = model(image, conf=0.60)
     result = results[0]
     boxes = result.boxes
     names = result.names
@@ -35,7 +38,6 @@ def Detect(image: Image.Image):
 
     x1, y1, x2, y2 = map(int, best_leaf_box.xyxy[0].tolist())
 
-    # Clamp coordinates
     x1 = max(0, x1)
     y1 = max(0, y1)
     x2 = min(image.width, x2)
@@ -62,7 +64,7 @@ def Detect(image: Image.Image):
             "box": bbox
         },
         "ensemble": classification,
-        "annotated_image_base64": annotated_b64
+        "annotated_image_base64": annotated_b64,
     }
 
 # Crop Image 

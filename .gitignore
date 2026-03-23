@@ -48,6 +48,7 @@ app-example
 venv/
 .env
 backend/.venv/
+Weights_2
 
 # ======================
 # IDE / Editor

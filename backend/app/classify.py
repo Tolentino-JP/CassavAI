@@ -148,20 +148,7 @@ transform = transforms.Compose([
 
 @torch.no_grad()
 def predict_ensemble_soft_voting(image: Image.Image, return_individual: bool = True) -> dict:
-    """
-    Soft Voting Ensemble:
-    - Each model outputs a probability vector via softmax.
-    - Ensemble prediction = average of all probability vectors.
-    - Final class = argmax of the averaged probabilities.
-
-    Args:
-        image: PIL Image to classify.
-        return_individual: If True, includes per-model predictions in response.
-
-    Returns:
-        dict with ensemble prediction, confidence, probabilities, and optionally
-        individual model results.
-    """
+    
     image_tensor = transform(image).unsqueeze(0).to(device)
 
     probs_sum = None

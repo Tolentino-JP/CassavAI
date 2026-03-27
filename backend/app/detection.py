@@ -4,15 +4,66 @@ import base64
 import io
 from pathlib import Path
 from .classify import predict_ensemble_soft_voting, predict_ensemble_weighted
+import os
+from .database import UploadUserResult
+import time
+
 
 weights_dir = Path(__file__).parent.parent.parent / "model" / "weights"
 model = YOLO(str(weights_dir / "Yolov8.pt"))  # trained weights
 
 
 
+
+def Result(files: dict):
+
+    folder = Path(r'D:\Dataset\Cassava_Leaf_Datasets\Classification\user_uploaded')
+    base = int(time.time())
+    ext = ".jpg"
+    filename = f"{base}{ext}"
+    full_path = os.path.join(folder, filename)
+    image = files["image"]
+
+    result = Detect(files["image"])
+
+    if result.get("error"):
+        return result
+
+
+    # Save File
+    while os.path.exists(full_path):
+        filename = f"{base}_{counter}{ext}"
+        full_path = os.path.join(folder, filename)
+        counter += 1
+
+    image.save(full_path, quality=95)
+
+    parameters = {
+        "file_name": filename,
+        "prediction": result["ensemble"]["class_name"],
+        "province": files["location"]["province"],
+        "city": files["location"]["city"],
+        "barangay": files["location"]["barangay"],
+        "confidence": result["ensemble"]["confidence"],
+    }
+
+    databaseResult = UploadUserResult(parameters)
+
+    if databaseResult:
+        return result
+    else:
+        return {"error": "No detections"}
+    
+    
+    
+
+    
+
+
+
+
 def Detect(image: Image.Image):
 
-    #Get start time
     results = model(image, conf=0.60)
     result = results[0]
     boxes = result.boxes

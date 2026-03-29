@@ -10,7 +10,6 @@ from pathlib import Path
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Get the weights directory path relative to this file
 weights_dir = Path(__file__).parent.parent.parent / "model" / "weights"
 
 models_config = {
@@ -48,20 +47,20 @@ loaded_models = {}
 class_names = None
 
 for name, cfg in models_config.items():
-    # FIX #3: Check weight file exists before loading
+    
     if not cfg["weights"].exists():
         raise FileNotFoundError(
             f"[{name}] Weight file not found: {cfg['weights']}"
         )
 
-    # FIX #6: Set weights_only=False explicitly — we load full checkpoints (state + metadata)
+    
     checkpoint = torch.load(str(cfg["weights"]), map_location=device, weights_only=False)
 
     # Extract class_names from first available checkpoint (same for all models)
     if class_names is None and "class_names" in checkpoint:
         class_names = checkpoint["class_names"]
 
-    # FIX #2: Determine the correct state dict key consistently
+    
     if "model_state_dict" in checkpoint:
         state_key = "model_state_dict"
     elif "model_state" in checkpoint:
@@ -72,20 +71,20 @@ for name, cfg in models_config.items():
             f"Found keys: {list(checkpoint.keys())}"
         )
 
-    # FIX #1: Derive num_classes safely using the resolved state_key
+    
     if class_names is not None:
         num_classes = len(class_names)
     else:
-        # Fallback: infer num_classes from the output layer weight shape
+        
         state_dict = checkpoint[state_key]
         output_keys = [
-            "fc.weight",               # ResNet50
-            "classifier.2.weight",     # ConvNeXt
-            "head.weight",             # SwinT
-            "heads.head.weight",       # ViT-B
-            "classifier.1.weight",     # EfficientNetV2
-            "classifier.3.weight",     # MobileNetV3
-            "classifier.weight",       # DenseNet121
+            "fc.weight",               
+            "classifier.2.weight",     
+            "head.weight",             
+            "heads.head.weight",       
+            "classifier.1.weight",     
+            "classifier.3.weight",     
+            "classifier.weight",       
         ]
         num_classes = None
         for key in output_keys:
@@ -98,7 +97,6 @@ for name, cfg in models_config.items():
                 f"No known output layer key found."
             )
 
-    # Create model with no pretrained weights
     model = cfg["model"](weights=None)
 
     # Adjust classifier head to match num_classes
@@ -117,7 +115,7 @@ for name, cfg in models_config.items():
     elif name == "DenseNet121":
         model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes)
 
-    # Load weights into model
+    # Load weights
     model.load_state_dict(checkpoint[state_key], strict=True)
     model.to(device)
     model.eval()
@@ -125,17 +123,17 @@ for name, cfg in models_config.items():
     loaded_models[name] = model
     print(f"[✓] Loaded {name} — {num_classes} classes")
 
-# FIX #4: Guard against class_names being None after loading all checkpoints
+
 if class_names is None:
     raise ValueError(
         "No 'class_names' key found in any checkpoint. "
         "Ensure your .pth files include class_names when saved."
     )
 
-print(f"\n[✓] Classes ({len(class_names)}): {class_names}\n")
+# print(f"\n[✓] Classes ({len(class_names)}): {class_names}\n")
 
 
-# Standard ImageNet normalization — compatible with all 7 backbones
+# Standard ImageNet normalization
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -144,6 +142,30 @@ transform = transforms.Compose([
         std=[0.229, 0.224, 0.225]
     )
 ])
+
+
+def predict_best_ensemble(image: Image.Image, return_individual: bool = True) -> dict:
+
+    results = {
+        "weighted": predict_ensemble_weighted(image, return_individual),
+        "hard_voting": predict_ensemble_hard_voting(image, return_individual),
+        "soft_voting": predict_ensemble_soft_voting(image, return_individual),  # your 3rd function
+    }
+
+    # Find the technique with the highest confidence
+    best_technique = max(results, key=lambda k: results[k]["confidence"])
+    best_result = results[best_technique]
+
+    response = {
+        **best_result
+    }
+
+    print(response)
+
+    return response
+
+
+
 
 
 @torch.no_grad()
@@ -184,9 +206,9 @@ def predict_ensemble_soft_voting(image: Image.Image, return_individual: bool = T
     return response
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Weighted Soft Voting Ensemble
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 # Validation accuracies per model
 val_accuracies = {
@@ -199,7 +221,7 @@ val_accuracies = {
     "DenseNet121":    0.9750
 }
 
-# Normalize weights so they sum to 1
+
 total_acc = sum(val_accuracies.values())
 weights = {
     name: acc / total_acc
@@ -209,22 +231,7 @@ weights = {
 
 @torch.no_grad()
 def predict_ensemble_weighted(image: Image.Image, return_individual: bool = True) -> dict:
-    """
-    Weighted Soft Voting Ensemble:
-    - Each model outputs a probability vector via softmax.
-    - Each vector is scaled by its normalized validation accuracy weight.
-    - Ensemble prediction = argmax of the weighted-sum probability vector.
-    - Since weights sum to 1 and each prob vector sums to 1, the result is
-      a valid probability distribution.
-
-    Args:
-        image: PIL Image to classify.
-        return_individual: If True, includes per-model predictions in response.
-
-    Returns:
-        dict with ensemble prediction, weighted confidence, probabilities, and
-        optionally individual model results with their weights.
-    """
+    
     image_tensor = transform(image).unsqueeze(0).to(device)
 
     weighted_probs_sum = None
@@ -252,12 +259,12 @@ def predict_ensemble_weighted(image: Image.Image, return_individual: bool = True
                 "weight": round(weight, 4)
             }
 
-    ensemble_conf, ensemble_pred = torch.max(weighted_probs_sum, dim=1)
+    conf, pred = torch.max(weighted_probs_sum, dim=1)
 
     response = {
-        "class_id": ensemble_pred.item(),
-        "class_name": class_names[ensemble_pred.item()],
-        "confidence": round(ensemble_conf.item(), 4),
+        "class_id": pred.item(),
+        "class_name": class_names[pred.item()],
+        "confidence": round(conf.item(), 4),
         "probabilities": [
             round(float(p), 6)
             for p in weighted_probs_sum.squeeze(0).tolist()
@@ -268,5 +275,53 @@ def predict_ensemble_weighted(image: Image.Image, return_individual: bool = True
         response["individual_models"] = individual_results
 
 
+
+    return response
+
+
+
+@torch.no_grad()
+def predict_ensemble_hard_voting(image: Image.Image, return_individual: bool = True) -> dict:
+
+    image_tensor = transform(image).unsqueeze(0).to(device)
+
+    votes = {}
+    individual_results = {}
+
+    for name, model in loaded_models.items():
+        outputs = model(image_tensor)
+        probs = torch.softmax(outputs, dim=1)
+
+        conf, pred = torch.max(probs, dim=1)
+        pred_id = pred.item()
+
+        votes[pred_id] = votes.get(pred_id, 0) + 1
+
+        if return_individual:
+            individual_results[name] = {
+                "class_id": pred_id,
+                "class_name": class_names[pred_id],
+                "confidence": round(conf.item(), 4),
+                "weight": round(1 / len(loaded_models), 4)
+            }
+
+    ensemble_pred = max(votes, key=lambda k: (votes[k], k))
+    total_models = len(loaded_models)
+
+
+    probabilities = [
+        round(votes.get(i, 0) / total_models, 6)
+        for i in range(len(class_names))
+    ]
+
+    response = {
+        "class_id": ensemble_pred,
+        "class_name": class_names[ensemble_pred],
+        "confidence": round(votes[ensemble_pred] / total_models, 4),
+        "probabilities": probabilities
+    }
+
+    if return_individual:
+        response["individual_models"] = individual_results
 
     return response

@@ -3,7 +3,7 @@ from PIL import Image, ImageDraw
 import base64
 import io
 from pathlib import Path
-from .classify import predict_ensemble_soft_voting, predict_ensemble_weighted
+from .classify import predict_best_ensemble
 import os
 from .database import UploadUserResult
 import time
@@ -100,7 +100,7 @@ def Detect(image: Image.Image):
     if cropped is None:
         return {"error": "Invalid crop"}
 
-    classification = predict_ensemble_soft_voting(
+    classification = predict_best_ensemble(
         cropped,
         return_individual=False
     )

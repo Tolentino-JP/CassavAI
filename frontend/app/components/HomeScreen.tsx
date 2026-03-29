@@ -221,6 +221,9 @@ export default function HomeScreen() {
 
   const data = locationData as LocationData;
 
+  const className = result?.ensemble?.class_name as keyof typeof leafDescriptions;
+  const leafData = leafDescriptions[className];
+
   useEffect(() => () => { if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current); }, []);
 
   useEffect(() => {
@@ -476,6 +479,40 @@ export default function HomeScreen() {
                     <Text style={styles.descText}>
                       {leafDescriptions[result.ensemble.class_name as keyof typeof leafDescriptions]?.description}
                     </Text>
+                    
+                      {className === "Healthy" ? (
+                        <>
+                          <View style={styles.descHeader}>
+                            <Ionicons name="leaf-outline" size={16} color={C.accent} />
+                            <Text style={styles.descTitle}>Tips</Text>
+                          </View>
+
+                          {"tips" in leafData? leafData.tips?.map((tip, index) => (
+                            <Text key={index} style={styles.descText}>
+                              • {tip}
+                            </Text>
+                          )): null}
+                        </>
+                      ) : (
+                        <>
+                          <View style={styles.descHeader}>
+                            <Ionicons name="bulb-outline" size={16} color={C.accent} />
+                            <Text style={styles.descTitle}>Cause</Text>
+                          </View>
+                          <Text style={styles.descText}>
+                            {"cause" in leafData ? leafData.cause : ""}
+                          </Text>
+
+                          <View style={styles.descHeader}>
+                            <Ionicons name="construct-outline" size={16} color={C.accent} />
+                            <Text style={styles.descTitle}>Management</Text>
+                          </View>
+                          <Text style={styles.descText}>
+                            {"management" in leafData ? leafData.management : ""}
+                          </Text>
+                        </>
+                      )}
+
                   </View>
                 </>
               )}

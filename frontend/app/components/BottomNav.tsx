@@ -38,7 +38,7 @@ function NavAction({
       toValue: 0.88,
       duration: 100,
       easing: Easing.out(Easing.quad),
-      useNativeDriver: false, // ✅ required
+      useNativeDriver: false,
     }).start();
   };
 
@@ -47,7 +47,7 @@ function NavAction({
       toValue: 1,
       speed: 40,
       bounciness: 6,
-      useNativeDriver: false, // ✅ required
+      useNativeDriver: false,
     }).start();
   };
   return (
@@ -71,13 +71,13 @@ function ScanButton({ onPress }: { onPress: () => void }) {
       toValue: 0.92,
       duration: 100,
       easing: Easing.out(Easing.quad),
-      useNativeDriver: false, // ✅ scale → supported
+      useNativeDriver: false,
     }).start();
 
     Animated.timing(glowAnim, {
       toValue: 1,
       duration: 150,
-      useNativeDriver: false, // ❌ color/shadow → NOT supported
+      useNativeDriver: false,
     }).start();
   };
 
@@ -86,13 +86,13 @@ function ScanButton({ onPress }: { onPress: () => void }) {
       toValue: 1,
       speed: 35,
       bounciness: 8,
-      useNativeDriver: false, // ✅ scale → supported
+      useNativeDriver: false,
     }).start();
 
     Animated.timing(glowAnim, {
       toValue: 0,
       duration: 300,
-      useNativeDriver: false, // ❌ required
+      useNativeDriver: false,
     }).start();
   };
 

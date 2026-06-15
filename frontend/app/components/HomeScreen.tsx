@@ -4,15 +4,14 @@ import {
   Alert,
   BackHandler,
   ActivityIndicator,
-  Animated,
-  Easing,
   Image,
   Pressable,
   StyleSheet,
   View,
   useWindowDimensions,
   Text,
-  ScrollView
+  ScrollView,
+  Modal
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "./BottomNav";
@@ -23,13 +22,33 @@ import AppText from "./AppText";
 import ModalCard from "./ModalCard";
 import leafDescriptions from "../../assets/text/leaf_description.json";
 import guideInstructions from "../../assets/text/guide_instructions.json";
+import locationData from "@/assets/text/locations.json"
+
+
+const C = {
+  bg: "#0a1a0f",
+  bgMid: "#0f2318",
+  surface: "#132b1a",
+  card: "#1a3522",
+  accent: "#2dc270",
+  accentGlow: "rgba(45,194,112,0.18)",
+  accentDim: "rgba(45,194,112,0.08)",
+  border: "#1f6f43",
+  borderSoft: "rgba(31,111,67,0.4)",
+  text: "#e8f5ee",
+  textMuted: "#7ab893",
+  textDim: "#3d7a55",
+  white: "#ffffff",
+  scanLine: "rgba(45,194,112,0.7)",
+  hudBg: "rgba(10,26,15,0.9)",
+};
+
 
 interface IndividualModelResult {
   class_id: number;
   class_name: String;
   confidence: number;
 }
-
 
 interface PredictionResponse {
   error?: string;
@@ -44,10 +63,134 @@ interface PredictionResponse {
     class_name: string;
     confidence: number;
     probabilities: number[];
-  }
+  };
   individual_models: IndividualModelResult;
 }
 
+type DropdownPickerProps = {
+  label: string;
+  value: string;
+  options: string[];
+  onSelect: (val: string) => void;
+  disabled: boolean;
+};
+
+function CornerBrackets({
+  size,
+  color,
+  thickness = 3,
+  length = 28,
+}: {
+  size: number;
+  color: string;
+  thickness?: number;
+  length?: number;
+}) {
+  const b: any = {
+    position: "absolute",
+    width: length,
+    height: length,
+    borderColor: color,
+  };
+  return (
+    <>
+      <View style={[b, { top: 0, left: 0, borderTopWidth: thickness, borderLeftWidth: thickness, borderTopLeftRadius: 6 }]} />
+      <View style={[b, { top: 0, right: 0, borderTopWidth: thickness, borderRightWidth: thickness, borderTopRightRadius: 6 }]} />
+      <View style={[b, { bottom: 0, left: 0, borderBottomWidth: thickness, borderLeftWidth: thickness, borderBottomLeftRadius: 6 }]} />
+      <View style={[b, { bottom: 0, right: 0, borderBottomWidth: thickness, borderRightWidth: thickness, borderBottomRightRadius: 6 }]} />
+    </>
+  );
+}
+
+function ConfBadge({ value }: { value: number }) {
+  const pct = value * 100;
+  const color = pct >= 80 ? C.accent : pct >= 60 ? "#e0a85c" : "#e05c5c";
+  return (
+    <View style={[badgeStyles.wrap, { borderColor: color }]}>
+      <View style={[badgeStyles.dot, { backgroundColor: color }]} />
+      <Text style={[badgeStyles.text, { color }]}>{pct.toFixed(1)}%</Text>
+    </View>
+  );
+}
+const badgeStyles = StyleSheet.create({
+  wrap: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  text: { fontSize: 12, fontWeight: "700" },
+});
+
+type LocationData = {
+  Provinces: {
+    [province: string]: {
+      Cities: {
+        [city: string]: {
+          Barangay: string[];
+        };
+      };
+    };
+  };
+};
+
+function ResultRow({ label, value }: { label: string; value: string | ReactNode }) {
+  return (
+    <View style={rowStyles.row}>
+      <Text style={rowStyles.label}>{label}</Text>
+      {typeof value === "string" ? <Text style={rowStyles.value}>{value}</Text> : value}
+    </View>
+  );
+}
+const rowStyles = StyleSheet.create({
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: "rgba(31,111,67,0.15)" },
+  label: { fontSize: 12, color: C.textMuted, letterSpacing: 0.3 },
+  value: { fontSize: 13, color: C.text, fontWeight: "600", maxWidth: "60%", textAlign: "right" },
+});
+
+function DropdownPicker({ label, value, options, onSelect, disabled }: DropdownPickerProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <View>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <Pressable
+        style={[styles.input, disabled && styles.inputDisabled]}
+        onPress={() => !disabled && setOpen(true)}
+      >
+        <Text style={{ color: value ? "#fff" : "#888", flex: 1 }}>
+          {value || `Select ${label}`}
+        </Text>
+        <Text style={{ color: "#888" }}>▾</Text>
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="fade">
+        <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
+          <View style={styles.dropdown}>
+            <Text style={styles.dropdownTitle}>{label}</Text>
+            <ScrollView>
+              {options.map((opt) => (
+                <Pressable
+                  key={opt}
+                  style={[
+                    styles.dropdownItem,
+                    value === opt && styles.dropdownItemActive,
+                  ]}
+                  onPress={() => {
+                    onSelect(opt);
+                    setOpen(false);
+                  }}
+                >
+                  <Text style={{ color: value === opt ? "#6ee7b7" : "#fff", fontSize: 14 }}>
+                    {opt}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -58,174 +201,113 @@ export default function HomeScreen() {
   const [errorVisible, setErrorVisible] = useState(false);
   const [guideVisible, setGuideVisible] = useState(false);
   const [guideLanguage, setGuideLanguage] = useState<"en" | "tl">("en");
-  const [scanBoxHeight, setScanBoxHeight] = useState(0);
   const [result, setResult] = useState<PredictionResponse | null>(null);
-  const scanAnim = useRef(new Animated.Value(0)).current;
+
   const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const horizontalPadding = 16;
+
+  const horizontalPadding = 20;
   const contentWidth = Math.min(width - horizontalPadding * 2, 520);
-  const imageSize = Math.min(contentWidth, height * 0.48);
+  const imageSize = Math.min(contentWidth, height * 0.46);
   const modalWidth = Math.min(contentWidth, 420);
   const mainPaddingBottom = height < 700 ? 36 : 70;
 
   const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  
-  useEffect(() => {
-    if (!isScanning) {
-      scanAnim.stopAnimation();
-      scanAnim.setValue(0);
-      return;
-    }
 
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scanAnim, {
-          toValue: 1,
-          duration: 900,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scanAnim, {
-          toValue: 0,
-          duration: 900,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ])
-    );
+  const [locationVisible, setLocationVisible] = useState(false);
+  const [province, setProvince] = useState("");
+  const [city, setCity] = useState("");
+  const [barangay, setBarangay] = useState("");
 
-    loop.start();
-    return () => loop.stop();
-  }, [isScanning, scanAnim]);
+  const data = locationData as LocationData;
 
-  useEffect(() => {
-    return () => {
-      if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current);
-        scanTimeoutRef.current = null;
-      }
-    };
-  }, []);
+  const className = result?.ensemble?.class_name as keyof typeof leafDescriptions;
+  const leafData = leafDescriptions[className];
+
+  useEffect(() => () => { if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current); }, []);
 
   useEffect(() => {
     const onBackPress = () => {
-      Alert.alert(
-        "Exit app",
-        "Do you want to exit the app?",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Exit", style: "destructive", onPress: () => BackHandler.exitApp() },
-        ]
-      );
+      Alert.alert("Exit app", "Do you want to exit the app?", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Exit", style: "destructive", onPress: () => BackHandler.exitApp() },
+      ]);
       return true;
     };
-
     const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => subscription.remove();
   }, []);
-  
+
   const startTimer = () => {
     const start = Date.now();
-
-    timerRef.current = setInterval(() => {
-      setElapsedTime(Date.now() - start);
-    }, 50);
+    timerRef.current = setInterval(() => setElapsedTime(Date.now() - start), 50);
   };
 
   const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   };
 
   const formatTime = (ms: number) => {
-    const totalSeconds = ms / 1000;
-
-    if (totalSeconds < 60) {
-      return `${totalSeconds.toFixed(2)}s`; 
-    }
-
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-
-    return `${minutes}:${seconds.toString().padStart(2, "0")}s`;
+    const s = ms / 1000;
+    if (s < 60) return `${s.toFixed(2)}s`;
+    const m = Math.floor(s / 60);
+    return `${m}:${Math.floor(s % 60).toString().padStart(2, "0")}s`;
   };
 
-  // Handlers for bottom navigation actions
   const handleBrowseFiles = async () => {
     const uri = await pickImageFromLibrary();
-    if (uri) {
-      setImageUri(uri);
-      setTopTab("scan");
-      setResultsVisible(false);
-    }
+    if (uri) { setImageUri(uri); setTopTab("scan"); setResultsVisible(false); }
   };
 
   const handleTakePhoto = async () => {
     const uri = await takePhoto();
-    if (uri) {
-      setImageUri(uri);
-      setTopTab("scan");
-      setResultsVisible(false);
+    if (uri) { setImageUri(uri); setTopTab("scan"); setResultsVisible(false); }
+  };
+
+  const submitScan = async () => {
+    if (!province || !city || !barangay) {
+      Alert.alert("Missing Info", "Please fill all location fields.");
+      return;
+    }
+
+    setLocationVisible(false);
+
+    try {
+      setIsScanning(true);
+      setElapsedTime(0);
+      startTimer();
+
+      const filename = imageUri!.split("/").pop() ?? "photo.jpg";
+      const type = filename.endsWith(".png") ? "image/png" : "image/jpeg";
+
+      const formData = new FormData();
+      formData.append("file", { uri: imageUri!, name: filename, type } as any);
+      formData.append("province", province);
+      formData.append("city", city);
+      formData.append("barangay", barangay);
+
+      const response = await fetch(
+        "https://quadrantlike-artie-pokiest.ngrok-free.dev/predict",
+        { method: "POST", body: formData }
+      );
+
+      const data = await response.json();
+      setResult(data);
+      setResultsVisible(true);
+      setTopTab("results");
+
+    } catch (error) {
+      console.error(error);
+      alert("Failed to send image to backend");
+    } finally {
+      stopTimer();
+      setIsScanning(false);
     }
   };
 
   const handleScan = async () => {
-
-    if (!imageUri) {
-      setErrorVisible(true);
-      return;
-    }
-
-    if (isScanning) return;
-
-    try {
-
-      // Start animation
-      setIsScanning(true);
-
-      setElapsedTime(0);
-      startTimer();
-
-      // ---- SEND TO BACKEND ----
-      const filename = imageUri.split("/").pop() ?? "photo.jpg";
-      const type = filename.endsWith(".png")
-        ? "image/png"
-        : "image/jpeg";
-
-      const formData = new FormData();
-      formData.append("file", {
-        uri: imageUri,
-        name: filename,
-        type: type,
-      } as any);
-
-      const response = await fetch("https://quadrantlike-artie-pokiest.ngrok-free.dev/predict", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      // Save result
-      setResult(data);
-      // Show results screen
-      setResultsVisible(true);
-      setTopTab("results");
-      
-    } catch (error) {
-      
-      console.error(error);
-      alert("Failed to send image to backend");
-
-    } finally {
-      // Stop animation
-      stopTimer();
-
-      setIsScanning(false);
-    }
+    if (!imageUri) { setErrorVisible(true); return; }
+    setLocationVisible(true);
   };
 
   type GuideIconToken = "camera" | "browse" | "scan";
@@ -238,89 +320,82 @@ export default function HomeScreen() {
       browse: "image-outline",
       scan: "scan-outline",
     };
-
     const nodes: ReactNode[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
     let iconIndex = 0;
-
     while ((match = tokenRegex.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        nodes.push(text.slice(lastIndex, match.index));
-      }
-
+      if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
       const token = match[1] as GuideIconToken;
-      nodes.push(
-        <Ionicons
-          key={`guide-icon-${token}-${iconIndex++}`}
-          name={iconNameByToken[token]}
-          size={16}
-          color="#1f6f43"
-        />
-      );
-
+      nodes.push(<Ionicons key={`guide-icon-${token}-${iconIndex++}`} name={iconNameByToken[token]} size={16} color={C.accent} />);
       lastIndex = match.index + match[0].length;
     }
-
-    if (lastIndex < text.length) {
-      nodes.push(text.slice(lastIndex));
-    }
-
+    if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
     return nodes;
   };
 
   return (
     <SafeAreaView edges={["top"]} style={styles.container}>
-      {/* // Header area */}
+
+      {/* ── Header ── */}
       <View style={styles.header}>
         <Header />
       </View>
 
-      {/* // Main content area */}
+      {/* ── Content ── */}
       <View style={styles.content}>
-        {/* // Scan and Result tabs */}
-        <View style={[styles.topTabsWrap, { width: contentWidth }]}>
-          <View style={styles.topTabs}>
-            <View style={[styles.tabPill, topTab === "scan" && styles.tabPillActive]}>
-              <Ionicons name="arrow-up-outline" size={18} color="#0f172a" />
-              <AppText weight="bold" style={styles.tabText}>Scan</AppText>
-            </View>
 
-            <View style={[styles.tab, topTab === "results" && styles.tabPillActive]}>
-              <Ionicons name="checkbox-outline" size={18} color="#0f172a" />
-              <AppText weight="bold" style={styles.tabText}>Results</AppText>
-            </View>
+        {/* ── Tab bar ── */}
+        <View style={[styles.tabBarWrap, { width: contentWidth }]}>
+          <View style={styles.tabBar}>
+            <Pressable
+              style={[styles.tabItem, topTab === "scan" && styles.tabItemActive]}
+              onPress={() => setTopTab("scan")}
+            >
+              <Ionicons name="scan-outline" size={15} color={topTab === "scan" ? C.accent : C.textDim} />
+              <Text style={[styles.tabLabel, topTab === "scan" && styles.tabLabelActive]}>Scan</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.tabItem, topTab === "results" && styles.tabItemActive]}
+              onPress={() => { if (result) { setTopTab("results"); setResultsVisible(true); } }}
+            >
+              <Ionicons name="stats-chart-outline" size={15} color={topTab === "results" ? C.accent : C.textDim} />
+              <Text style={[styles.tabLabel, topTab === "results" && styles.tabLabelActive]}>Results</Text>
+              {result && topTab !== "results" && <View style={styles.tabDot} />}
+            </Pressable>
           </View>
         </View>
 
-        {/* // Main image and scanning area */}
+        {/* ── Main scan area ── */}
         <View style={[styles.mainArea, { paddingBottom: mainPaddingBottom }]}>
-          {/* // Guide Button */}
-          <Pressable
-            style={styles.infoFloating}
-            onPress={() => setGuideVisible(true)}
-          >
-            <Ionicons name="information-circle-outline" size={28} color="#1f6f43" />
+
+          {/* Guide button */}
+          <Pressable style={styles.guideBtn} onPress={() => setGuideVisible(true)}>
+            <Ionicons name="help-outline" size={16} color={C.accent} />
           </Pressable>
 
-          {/* // Image Container */}
-          <View style={[styles.imageWrap, { width: imageSize, height: imageSize }]}>
-            <View
-              style={styles.imageWrapInner}
-              onLayout={(e) => setScanBoxHeight(e.nativeEvent.layout.height)}
-            >
+          {/* Scan frame */}
+          <View style={[styles.frameOuter, { width: imageSize, height: imageSize }]}>
+            <View style={styles.frameInner}>
               {imageUri ? (
                 <Image source={{ uri: imageUri }} style={styles.image} />
               ) : (
-                <AppText weight="semibold" style={styles.placeholder}>
-                  No image selected
-                </AppText>
+                <View style={styles.emptyState}>
+                  <View style={styles.emptyIconRing}>
+                    <Ionicons name="leaf-outline" size={40} color={C.border} />
+                  </View>
+                  <Text style={styles.emptyTitle}>No image selected</Text>
+                  <Text style={styles.emptyHint}>Use the controls below to get started</Text>
+                </View>
               )}
             </View>
 
+            <CornerBrackets size={imageSize} color={isScanning ? C.accent : C.border} thickness={2.5} length={24} />
+
             {imageUri && (
               <Pressable
-                style={styles.clearButton}
+                style={styles.clearBtn}
                 onPress={() => {
                   setImageUri(null);
                   setTopTab("scan");
@@ -329,433 +404,358 @@ export default function HomeScreen() {
                 }}
                 hitSlop={10}
               >
-                <Ionicons name="close" size={18} color="#1f2937" />
+                <Ionicons name="close" size={14} color={C.text} />
               </Pressable>
             )}
 
+            {/* Scanning overlay — no animations, just HUD */}
             {isScanning && (
-              <View style={styles.scanOverlay} pointerEvents="none">
-                <Animated.View
-                  style={[
-                    styles.scanLine,
-                    {
-                      transform: [
-                        {
-                          translateY: scanAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, Math.max(0, scanBoxHeight - 6)],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                />
+              <View style={[StyleSheet.absoluteFill, styles.scanOverlay]} pointerEvents="none">
+                <View style={styles.scanTint} />
                 <View style={styles.scanHud}>
-                  <ActivityIndicator color="#0f172a" />
-                  <AppText weight="semibold" style={styles.scanText}>
-                    {formatTime(elapsedTime)} Scanning...
-                  </AppText>
+                  <ActivityIndicator size="small" color={C.accent} />
+                  <Text style={styles.scanTime}>{formatTime(elapsedTime)}</Text>
+                  <Text style={styles.scanLabel}>Analyzing…</Text>
                 </View>
               </View>
             )}
           </View>
+
+          {/* Status pills */}
+          {!isScanning && imageUri && !resultsVisible && (
+            <View style={styles.readyPill}>
+              <View style={styles.readyDot} />
+              <Text style={styles.readyText}>Ready to scan</Text>
+            </View>
+          )}
+          {!imageUri && (
+            <View style={styles.readyPill}>
+              <Ionicons name="arrow-down-outline" size={12} color={C.textDim} />
+              <Text style={styles.hintText}>Take a photo or browse your gallery</Text>
+            </View>
+          )}
         </View>
       </View>
 
-
-      {/* // Bottom navigation area */}
+      {/* ── Bottom nav ── */}
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-        <BottomNav
-          onBrowse={handleBrowseFiles}
-          onCamera={handleTakePhoto}
-          onScan={handleScan}
-        />
+        <BottomNav onBrowse={handleBrowseFiles} onCamera={handleTakePhoto} onScan={handleScan} />
       </View>
 
-      <ModalCard
-        visible={resultsVisible}
-        title="Results"
-        width={modalWidth}
-        onClose={() => { setResultsVisible(false); setTopTab("scan"); }}
-      >
-        <ScrollView style={{ maxHeight: 500, backgroundColor: "#bfe7cc" }} contentContainerStyle={{ padding: 18 }}>
+      {/* ── Results modal ── */}
+      <ModalCard visible={resultsVisible} title="Scan Results" width={modalWidth} onClose={() => { setResultsVisible(false); setTopTab("scan"); }}>
+        <ScrollView style={{ maxHeight: 520 }} contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
           {result && (
-            <View style={styles.modalBody}>
+            <>
               {result.error ? (
-                <Text style={{ color: "red", textAlign: "center", fontSize: 30 }}>
-                  {result.error}
-                </Text>
+                <View style={styles.errorState}>
+                  <Ionicons name="warning-outline" size={32} color="#e05c5c" />
+                  <Text style={styles.errorMsg}>{result.error}</Text>
+                </View>
               ) : (
                 <>
-                  {/*Show Annotated Image*/}
-                  <Image
-                    source={{
-                      uri: `data:image/png;base64,${result.annotated_image_base64}`,
-                    }}
-                    style={{ width: 250, height: 250, alignSelf: "center" }}
-                    resizeMode="contain"
-                  />
+                  <View style={styles.resultImageWrap}>
+                    <Image source={{ uri: `data:image/png;base64,${result.annotated_image_base64}` }} style={styles.resultImage} resizeMode="contain" />
+                    <CornerBrackets size={220} color={C.border} thickness={2} length={18} />
+                  </View>
 
-                  <Text style={styles.textResult}>Processing Time</Text>
-                  <Text>
-                    {formatTime(elapsedTime)}
-                  </Text>
+                  <View style={styles.classHeadline}>
+                    <Text style={styles.classLabel}>Detected Disease</Text>
+                    <Text style={styles.className}>{result.ensemble.class_name}</Text>
+                  </View>
 
-                  {/*Detection Info*/}
-                  <Text style={ styles.textResult }>
-                    Object Detection
-                  </Text>
-                  <Text>
-                    Label: {result.detection.label}
-                  </Text>
-                  <Text>
-                    Confidence: {(result.detection.confidence) * 100}%
-                  </Text>
+                  <View style={styles.statsCard}>
+                    <ResultRow label="Processing Time" value={formatTime(elapsedTime)} />
+                    <ResultRow label="Detection Label" value={result.detection.label} />
+                    <ResultRow label="Detection Confidence" value={<ConfBadge value={result.detection.confidence} />} />
+                    <ResultRow label="Classification Confidence" value={<ConfBadge value={result.ensemble.confidence} />} />
+                  </View>
 
-                  {/*Classification Result*/}
-                  <Text style={ styles.textResult }>Classification </Text>
-                  <Text>
-                    Class: {result.ensemble.class_name}
-                  </Text>
-                  <Text>
-                    Confidence: {(result.ensemble.confidence)* 100}%
-                  </Text>
+                  <View style={styles.descCard}>
+                    <View style={styles.descHeader}>
+                      <Ionicons name="information-circle-outline" size={16} color={C.accent} />
+                      <Text style={styles.descTitle}>Description</Text>
+                    </View>
+                    <Text style={styles.descText}>
+                      {leafDescriptions[result.ensemble.class_name as keyof typeof leafDescriptions]?.description}
+                    </Text>
+                    
+                      {className === "Healthy" ? (
+                        <>
+                          <View style={styles.descHeader}>
+                            <Ionicons name="leaf-outline" size={16} color={C.accent} />
+                            <Text style={styles.descTitle}>Tips</Text>
+                          </View>
 
-                  <Text style={ styles.textResult }> Description:</Text>
-                  <Text style={ { textAlign: "justify", marginTop:10} }>
-                    {leafDescriptions[result.ensemble.class_name as keyof typeof leafDescriptions].description}
-                  </Text>
+                          {"tips" in leafData? leafData.tips?.map((tip, index) => (
+                            <Text key={index} style={styles.descText}>
+                              • {tip}
+                            </Text>
+                          )): null}
+                        </>
+                      ) : (
+                        <>
+                          <View style={styles.descHeader}>
+                            <Ionicons name="bulb-outline" size={16} color={C.accent} />
+                            <Text style={styles.descTitle}>Cause</Text>
+                          </View>
+                          <Text style={styles.descText}>
+                            {"cause" in leafData ? leafData.cause : ""}
+                          </Text>
+
+                          <View style={styles.descHeader}>
+                            <Ionicons name="construct-outline" size={16} color={C.accent} />
+                            <Text style={styles.descTitle}>Management</Text>
+                          </View>
+                          <Text style={styles.descText}>
+                            {"management" in leafData ? leafData.management : ""}
+                          </Text>
+                        </>
+                      )}
+
+                  </View>
                 </>
               )}
-            </View>
+            </>
           )}
         </ScrollView>
       </ModalCard>
 
-      <ModalCard
-        visible={errorVisible}
-        title="Take a photo or select an image"
-        width={modalWidth}
-        onClose={() => setErrorVisible(false)}
-      >
-        <View style={styles.errorBody}>
-          <Ionicons name="alert-circle-outline" size={28} color="#0f172a" />
-          <AppText weight="semibold" style={styles.errorText}>
-            Please select or take a photo before scanning.
-          </AppText>
+      {/* ── Error modal ── */}
+      <ModalCard visible={errorVisible} title="No Image Selected" width={modalWidth} onClose={() => setErrorVisible(false)}>
+        <View style={styles.errModalBody}>
+          <View style={styles.errIconRing}>
+            <Ionicons name="image-outline" size={28} color={C.accent} />
+          </View>
+          <Text style={styles.errModalText}>
+            Please take a photo or select an image from your gallery before scanning.
+          </Text>
         </View>
       </ModalCard>
 
-      <ModalCard
-        visible={guideVisible}
-        title="Guide"
-        width={modalWidth}
-        onClose={() => setGuideVisible(false)}
-      >
-        <ScrollView
-          style={{ maxHeight: 500, backgroundColor: "#bfe7cc" }}
-          contentContainerStyle={styles.guideContent}
-        >
-          <View style={styles.langToggle}>
-            <Pressable
-              style={[
-                styles.langTogglePill,
-                guideLanguage === "tl" && styles.langTogglePillActive,
-              ]}
-              onPress={() => setGuideLanguage("tl")}
-              accessibilityRole="button"
-              accessibilityState={{ selected: guideLanguage === "tl" }}
-            >
-              <AppText
-                weight="bold"
-                style={[
-                  styles.langToggleText,
-                  guideLanguage === "tl" && styles.langToggleTextActive,
-                ]}
-              >
-                Tagalog
-              </AppText>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.langTogglePill,
-                guideLanguage === "en" && styles.langTogglePillActive,
-              ]}
-              onPress={() => setGuideLanguage("en")}
-              accessibilityRole="button"
-              accessibilityState={{ selected: guideLanguage === "en" }}
-            >
-              <AppText
-                weight="bold"
-                style={[
-                  styles.langToggleText,
-                  guideLanguage === "en" && styles.langToggleTextActive,
-                ]}
-              >
-                English
-              </AppText>
-            </Pressable>
+      {/* ── Guide modal ── */}
+      <ModalCard visible={guideVisible} title="How to Use" width={modalWidth} onClose={() => setGuideVisible(false)}>
+        <ScrollView style={{ maxHeight: 500 }} contentContainerStyle={styles.guideContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.langRow}>
+            {(["tl", "en"] as const).map((lang) => (
+              <Pressable key={lang} style={[styles.langPill, guideLanguage === lang && styles.langPillActive]} onPress={() => setGuideLanguage(lang)}>
+                <Text style={[styles.langText, guideLanguage === lang && styles.langTextActive]}>
+                  {lang === "en" ? "English" : "Tagalog"}
+                </Text>
+              </Pressable>
+            ))}
           </View>
 
-          <AppText weight="semibold" style={styles.guideIntro}>
-            {guideInstructions.intro[guideLanguage]}
-          </AppText>
+          <Text style={styles.guideIntro}>{guideInstructions.intro[guideLanguage]}</Text>
 
-          {guideInstructions.steps[guideLanguage].map((step, index) => (
-            <View key={`step-${index}`} style={styles.guideRow}>
-              <AppText weight="bold" style={styles.guideNum}>
-                {index + 1}.
-              </AppText>
+          {guideInstructions.steps[guideLanguage].map((step, i) => (
+            <View key={`step-${i}`} style={styles.guideRow}>
+              <View style={styles.guideNumWrap}>
+                <Text style={styles.guideNum}>{i + 1}</Text>
+              </View>
               <AppText style={styles.guideText}>{renderGuideText(step)}</AppText>
             </View>
           ))}
 
-          <AppText weight="bold" style={styles.guideSectionTitle}>
-            {guideInstructions.photoTipsTitle[guideLanguage]}
-          </AppText>
+          <View style={styles.guideDivider} />
+          <Text style={styles.guideSectionTitle}>{guideInstructions.photoTipsTitle[guideLanguage]}</Text>
 
-          {guideInstructions.photoTips[guideLanguage].map((tip, index) => (
-            <View key={`tip-${index}`} style={styles.guideRow}>
-              <AppText weight="bold" style={styles.guideBullet}>
-                •
-              </AppText>
+          {guideInstructions.photoTips[guideLanguage].map((tip, i) => (
+            <View key={`tip-${i}`} style={styles.guideRow}>
+              <View style={styles.guideBulletWrap}>
+                <View style={styles.guideBulletDot} />
+              </View>
               <AppText style={styles.guideText}>{renderGuideText(tip)}</AppText>
             </View>
           ))}
         </ScrollView>
       </ModalCard>
+
+      {/* ── Location modal ── */}
+      <ModalCard
+        visible={locationVisible}
+        title="Enter Location"
+        width={modalWidth}
+        onClose={() => setLocationVisible(false)}
+      >
+        <View style={{ padding: 16, gap: 12 }}>
+
+          {/* Province */}
+          <DropdownPicker
+            label="Province"
+            value={province}
+            options={Object.keys(locationData.Provinces)}
+            onSelect={(val) => {
+              setProvince(val);
+              setCity("");
+              setBarangay("");
+            }}
+            disabled={false}
+          />
+
+          {/* City / Municipality */}
+          <DropdownPicker
+            label="City / Municipality"
+            value={city}
+            options={
+              province
+                ? Object.keys(data.Provinces[province].Cities)
+                : []
+            }
+            onSelect={(val) => {
+              setCity(val);
+              setBarangay("");
+            }}
+            disabled={!province}
+          />
+
+          {/* Barangay */}
+          <DropdownPicker
+            label="Barangay"
+            value={barangay}
+            options={
+              province && city
+                ? data.Provinces[province].Cities[city].Barangay
+                : []
+            }
+            onSelect={setBarangay}
+            disabled={!city}
+          />
+
+          <Pressable style={styles.submitBtn} onPress={submitScan}>
+            <Text style={styles.submitText}>Continue Scan</Text>
+          </Pressable>
+
+        </View>
+      </ModalCard>
+
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flex: 1,
-  },
-  content: {
-    flex: 7.5,
-    justifyContent: "flex-start",
-    alignItems: "center",
-    backgroundColor: "#bfe7cc",
-    paddingTop: 14,
-  },
-  mainArea: {
-    flex: 1,
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  infoFloating: {
-    position: "absolute",
-    right: 18,
-    top: 6,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  topTabsWrap: {
-    paddingHorizontal: 1,
-    marginBottom: 12,
-  },
-  topTabs: {
-    backgroundColor: "rgba(19, 170, 5, 0.35)",
-    borderRadius: 22,
-    padding: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    paddingHorizontal: 10,
-  },
-  tabPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18,
-    marginHorizontal: 6,
-    flex: 1,
-  },
-  tabPillActive: {
-    backgroundColor: "rgba(255,255,255,0.55)",
-    borderRadius: 18,
-  },
-  tab: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 18,
-    flex: 1,
-  },
-  tabText: {
-    fontSize: 16,
-    color: "#0f172a",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 16,
-    resizeMode: "contain",
-  },
-  imageWrap: {
-    position: "relative",
-    borderRadius: 16,
-    overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.35)",
-    borderWidth: 2,
-    borderStyle: "dotted",
-    borderColor: "#1f6f43",
-  },
-  imageWrapInner: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  clearButton: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(255,255,255,0.85)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  placeholder: {
-    color: "#3a5b43",
-    fontSize: 18,
-    textAlign: "center",
-    alignSelf: "center",
-  },
-  bottom: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  scanOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    justifyContent: "flex-end",
-  },
-  scanLine: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "rgba(15, 23, 42, 0.55)",
-  },
-  scanHud: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    margin: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.88)",
-  },
-  scanText: {
-    color: "#0f172a",
-    fontSize: 14,
-  },
-  modalBody: {
-    minHeight: 260,
-  },
-  guideContent: {
-    padding: 18,
-  },
-  guideIntro: {
-    fontSize: 14,
-    color: "#0f172a",
-    marginBottom: 12,
-  },
-  guideSectionTitle: {
-    fontSize: 14,
-    color: "#0f172a",
-    marginTop: 14,
-    marginBottom: 10,
-  },
-  guideRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 10,
-  },
-  guideNum: {
-    width: 22,
-    fontSize: 14,
-    color: "#1f6f43",
-    paddingTop: 1,
-  },
-  guideBullet: {
-    width: 22,
-    fontSize: 16,
-    color: "#1f6f43",
-    lineHeight: 18,
-  },
-  guideText: {
-    flex: 1,
-    fontSize: 14,
-    color: "#0f172a",
-    lineHeight: 20,
-  },
-  langToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    padding: 6,
-    borderRadius: 18,
-    backgroundColor: "rgba(19, 170, 5, 0.35)",
-    marginBottom: 12,
-  },
-  langTogglePill: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  langTogglePillActive: {
-    backgroundColor: "rgba(255,255,255,0.55)",
-  },
-  langToggleText: {
-    fontSize: 14,
-    color: "#0f172a",
-  },
-  langToggleTextActive: {
-    color: "#1f6f43",
-  },
-  errorBody: {
-    height: 200,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 18,
-    gap: 10,
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#0f172a",
-    textAlign: "center",
-  },
-  textResult:{
-    marginTop: 12,
-    fontWeight: "bold",
-  }
-});
 
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
+  header: { flex: 1 },
+  content: { flex: 7.5, backgroundColor: C.bg, alignItems: "center", paddingTop: 16 },
+
+  tabBarWrap: { marginBottom: 20, paddingHorizontal: 4 },
+  tabBar: { flexDirection: "row", backgroundColor: C.surface, borderRadius: 14, padding: 5, borderWidth: 1, borderColor: C.borderSoft, gap: 4 },
+  tabItem: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 9, borderRadius: 10 },
+  tabItemActive: { backgroundColor: C.accentDim, borderWidth: 1, borderColor: "rgba(45,194,112,0.25)" },
+  tabLabel: { fontSize: 13, fontWeight: "600", color: C.textDim, letterSpacing: 0.3 },
+  tabLabelActive: { color: C.accent },
+  tabDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent, position: "absolute", top: 6, right: 10 },
+
+  mainArea: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", gap: 14 },
+
+  guideBtn: { position: "absolute", right: 18, top: -4, width: 32, height: 32, borderRadius: 10, backgroundColor: C.accentDim, borderWidth: 1, borderColor: C.borderSoft, alignItems: "center", justifyContent: "center" },
+
+  frameOuter: { borderRadius: 20, overflow: "hidden", backgroundColor: C.surface, shadowColor: C.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.15, shadowRadius: 16, elevation: 8 },
+  frameInner: { flex: 1, alignItems: "center", justifyContent: "center" },
+  image: { width: "100%", height: "100%", borderRadius: 18, resizeMode: "contain" },
+
+  emptyState: { alignItems: "center", gap: 10, paddingHorizontal: 24 },
+  emptyIconRing: { width: 80, height: 80, borderRadius: 40, backgroundColor: "rgba(31,111,67,0.12)", borderWidth: 1, borderColor: C.borderSoft, alignItems: "center", justifyContent: "center", marginBottom: 6 },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: C.textMuted, letterSpacing: 0.3 },
+  emptyHint: { fontSize: 12, color: C.textDim, textAlign: "center", lineHeight: 18 },
+
+  clearBtn: { position: "absolute", top: 10, right: 10, width: 26, height: 26, borderRadius: 8, backgroundColor: "rgba(10,26,15,0.85)", borderWidth: 1, borderColor: C.borderSoft, alignItems: "center", justifyContent: "center" },
+
+  scanOverlay: { justifyContent: "flex-end" },
+  scanTint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(45,194,112,0.04)" },
+  scanHud: { margin: 12, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.hudBg, borderWidth: 1, borderColor: "rgba(45,194,112,0.2)", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 },
+  scanTime: { fontSize: 13, fontWeight: "700", color: C.accent },
+  scanLabel: { fontSize: 12, color: C.textMuted, flex: 1 },
+
+  readyPill: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderSoft },
+  readyDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.accent },
+  readyText: { fontSize: 12, color: C.accent, fontWeight: "600" },
+  hintText: { fontSize: 12, color: C.textDim },
+
+  bottom: { flex: 1, backgroundColor: "#ffffff" },
+
+  modalContent: { padding: 18, gap: 16, backgroundColor: C.bg },
+  resultImageWrap: { width: 220, height: 220, alignSelf: "center", borderRadius: 14, overflow: "hidden", backgroundColor: C.surface },
+  resultImage: { width: "100%", height: "100%" },
+  classHeadline: { alignItems: "center", gap: 4 },
+  classLabel: { fontSize: 11, color: C.textDim, letterSpacing: 1, textTransform: "uppercase" },
+  className: { fontSize: 18, fontWeight: "800", color: C.text, textAlign: "center", letterSpacing: 0.3 },
+  statsCard: { backgroundColor: C.card, borderRadius: 14, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(31,111,67,0.2)" },
+  descCard: { backgroundColor: C.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "rgba(31,111,67,0.2)", gap: 8 },
+  descHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+  descTitle: { fontSize: 12, fontWeight: "700", color: C.textMuted, letterSpacing: 0.5, textTransform: "uppercase" },
+  descText: { fontSize: 13, color: C.textMuted, lineHeight: 20, textAlign: "justify" },
+  errorState: { alignItems: "center", gap: 12, paddingVertical: 32 },
+  errorMsg: { fontSize: 14, color: "#e05c5c", textAlign: "center" },
+
+  errModalBody: { alignItems: "center", justifyContent: "center", gap: 14, paddingVertical: 28, paddingHorizontal: 20, backgroundColor: C.bg },
+  errIconRing: { width: 64, height: 64, borderRadius: 32, backgroundColor: C.accentDim, borderWidth: 1, borderColor: C.borderSoft, alignItems: "center", justifyContent: "center" },
+  errModalText: { fontSize: 14, color: C.textMuted, textAlign: "center", lineHeight: 21 },
+
+  guideContent: { padding: 18, gap: 12, backgroundColor: C.bg },
+  langRow: { flexDirection: "row", backgroundColor: C.surface, borderRadius: 12, padding: 4, gap: 4, borderWidth: 1, borderColor: C.borderSoft, marginBottom: 4 },
+  langPill: { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: "center" },
+  langPillActive: { backgroundColor: C.accentDim, borderWidth: 1, borderColor: "rgba(45,194,112,0.25)" },
+  langText: { fontSize: 13, fontWeight: "600", color: C.textDim },
+  langTextActive: { color: C.accent },
+  guideIntro: { fontSize: 13, color: C.textMuted, lineHeight: 20 },
+  guideRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  guideNumWrap: { width: 22, height: 22, borderRadius: 7, backgroundColor: C.accentDim, borderWidth: 1, borderColor: C.borderSoft, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  guideNum: { fontSize: 11, fontWeight: "800", color: C.accent },
+  guideBulletWrap: { width: 22, alignItems: "center", paddingTop: 8 },
+  guideBulletDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.border },
+  guideText: { flex: 1, fontSize: 13, color: C.textMuted, lineHeight: 20 },
+  guideDivider: { height: 1, backgroundColor: C.borderSoft, marginVertical: 6 },
+  guideSectionTitle: { fontSize: 12, fontWeight: "700", color: C.textDim, letterSpacing: 0.8, textTransform: "uppercase" },
+
+  inputLabel: { fontSize: 12, color: C.textMuted },
+  input: {
+    borderWidth: 1,
+    borderColor: C.borderSoft,
+    borderRadius: 8,
+    padding: 10,
+    color: C.text,
+    backgroundColor: C.surface,
+    flexDirection: "row",   // ← add this
+    alignItems: "center",   // ← add this
+  },
+  submitBtn: { marginTop: 10, backgroundColor: C.accent, paddingVertical: 12, borderRadius: 10, alignItems: "center" },
+  submitText: { color: "#fff", fontWeight: "700" },
+
+  inputDisabled: {
+    opacity: 0.4,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  dropdown: {
+    backgroundColor: "#1e1e2e",
+    borderRadius: 12,
+    width: "100%",
+    maxHeight: 320,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  dropdownTitle: {
+    color: "#aaa",
+    fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  dropdownItemActive: {
+    backgroundColor: "#2a2a3e",
+  },
+});
